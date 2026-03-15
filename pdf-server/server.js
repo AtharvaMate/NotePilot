@@ -1,17 +1,17 @@
-const express    = require('express');
-const puppeteer  = require('puppeteer');
-const app        = express();
-const PORT       = process.env.PORT || 3000;
+const express = require('express');
+const puppeteer = require('puppeteer');
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '50mb' }));
 
 // Allow requests from Chrome extensions
 app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    if (req.method === 'OPTIONS') return res.sendStatus(200);
-    next();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
 });
 
 // Health check
@@ -19,86 +19,86 @@ app.get('/', (req, res) => res.json({ status: 'NotePilot PDF Server running' }))
 
 // ── PDF generation endpoint ──
 app.post('/generate-pdf', async (req, res) => {
-    const {
-        notes        = [],
-        aiResponses  = [],
-        videoTitle   = '',
-        videoId      = '',
-        pdfTitle     = 'Study Notes',
-        aiSummary    = ''
-    } = req.body;
+  const {
+    notes = [],
+    aiResponses = [],
+    videoTitle = '',
+    videoId = '',
+    pdfTitle = 'Study Notes',
+    aiSummary = ''
+  } = req.body;
 
-    if (!notes.length && !aiResponses.length) {
-        return res.status(400).json({ error: 'No content to export' });
-    }
+  if (!notes.length && !aiResponses.length) {
+    return res.status(400).json({ error: 'No content to export' });
+  }
 
-    let browser;
-    try {
-        const html = buildHTML({ notes, aiResponses, videoTitle, videoId, pdfTitle, aiSummary });
+  let browser;
+  try {
+    const html = buildHTML({ notes, aiResponses, videoTitle, videoId, pdfTitle, aiSummary });
 
-        browser = await puppeteer.launch({
-            headless: 'new',
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ]
-        });
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ]
+    });
 
-        const page = await browser.newPage();
+    const page = await browser.newPage();
 
-        // Set content and wait for KaTeX CDN fonts + images to load
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+    // Set content and wait for KaTeX CDN fonts + images to load
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
 
-        // Wait a tick for KaTeX JS to render math
-        await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 500)));
+    // Wait a tick for KaTeX JS to render math
+    await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 500)));
 
-        const pdf = await page.pdf({
-            format: 'A4',
-            printBackground: true,
-            margin: { top: '14mm', bottom: '14mm', left: '16mm', right: '16mm' },
-            displayHeaderFooter: false
-        });
+    const pdf = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '14mm', bottom: '14mm', left: '16mm', right: '16mm' },
+      displayHeaderFooter: false
+    });
 
-        await browser.close();
+    await browser.close();
 
-        const safeName = pdfTitle.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '_') || 'Study_Notes';
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
-        res.send(pdf);
+    const safeName = pdfTitle.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '_') || 'Study_Notes';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
+    res.send(pdf);
 
-    } catch (err) {
-        if (browser) await browser.close().catch(() => {});
-        console.error('PDF generation error:', err);
-        res.status(500).json({ error: err.message });
-    }
+  } catch (err) {
+    if (browser) await browser.close().catch(() => { });
+    console.error('PDF generation error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── HTML template ──
 function buildHTML({ notes, aiResponses, videoTitle, videoId, pdfTitle, aiSummary }) {
-    const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    const notesHtml = notes.map((note, i) => {
-        const imgHtml = (note.snapshot && note.snapshot.startsWith('data:'))
-            ? `<div class="note-img"><img src="${note.snapshot}" alt="Frame at ${esc(note.timestamp)}"></div>`
-            : '';
+  const notesHtml = notes.map((note, i) => {
+    const imgHtml = (note.snapshot && note.snapshot.startsWith('data:'))
+      ? `<div class="note-img"><img src="${note.snapshot}" alt="Frame at ${esc(note.timestamp)}"></div>`
+      : '';
 
-        const ocrHtml = note.ocrText
-            ? `<div class="block ocr-block">
+    const ocrHtml = note.ocrText
+      ? `<div class="block ocr-block">
                    <div class="block-label">Extracted Text</div>
                    <div class="block-body math-text">${esc(note.ocrText)}</div>
                </div>`
-            : '';
+      : '';
 
-        const explHtml = note.aiExplanation
-            ? `<div class="block expl-block">
+    const explHtml = note.aiExplanation
+      ? `<div class="block expl-block">
                    <div class="block-label">AI Explanation</div>
                    <div class="block-body math-text">${esc(note.aiExplanation)}</div>
                </div>`
-            : '';
+      : '';
 
-        return `
+    return `
         <div class="note-card">
             <div class="note-header">
                 <span class="ts-pill">${esc(note.timestamp)}</span>
@@ -112,17 +112,17 @@ function buildHTML({ notes, aiResponses, videoTitle, videoId, pdfTitle, aiSummar
                 ${explHtml}
             </div>
         </div>`;
-    }).join('');
+  }).join('');
 
-    const qaHtml = aiResponses
-        .filter(q => q.includedInPdf !== false)
-        .map((qa, i) => `
+  const qaHtml = aiResponses
+    .filter(q => q.includedInPdf !== false)
+    .map((qa, i) => `
         <div class="qa-item">
             <div class="qa-q math-text"><span class="qa-num">Q${i + 1}</span> ${esc(qa.question)}</div>
             <div class="qa-a math-text">${esc(qa.answer)}</div>
         </div>`).join('');
 
-    return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -308,8 +308,8 @@ function buildHTML({ notes, aiResponses, videoTitle, videoId, pdfTitle, aiSummar
       <div class="stat-label">Captures</div>
     </div>
     ${aiResponses.filter(q => q.includedInPdf !== false).length
-        ? `<div><div class="stat-num">${aiResponses.filter(q => q.includedInPdf !== false).length}</div><div class="stat-label">Q&amp;A</div></div>`
-        : ''}
+      ? `<div><div class="stat-num">${aiResponses.filter(q => q.includedInPdf !== false).length}</div><div class="stat-label">Q&amp;A</div></div>`
+      : ''}
   </div>
 </div>
 
@@ -343,11 +343,11 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 
 function esc(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 app.listen(PORT, () => console.log(`NotePilot PDF server running on port ${PORT}`));
