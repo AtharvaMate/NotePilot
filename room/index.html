@@ -799,7 +799,9 @@
 
       try {
         // Store annotation under: rooms/{roomId}/annotations/{noteIdx}/{sessionId}
-        const path = 'rooms/' + ROOM_ID + '/annotations/' + noteIdx + '/' + SESSION_ID;
+        // Use SESSION_ID + timestamp so each post gets its own key (never overwrites)
+        const annKey = SESSION_ID + '_' + Date.now();
+        const path = 'rooms/' + ROOM_ID + '/annotations/' + noteIdx + '/' + annKey;
         await fbPut(path, { name, text, createdAt: Date.now(), sessionId: SESSION_ID });
         input.value = '';
         toast('Annotation posted!', 'success');
