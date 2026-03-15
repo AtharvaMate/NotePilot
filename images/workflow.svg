@@ -1,0 +1,67 @@
+<svg width="860" height="160" viewBox="0 0 860 160" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#07070d"/>
+      <stop offset="100%" stop-color="#0d0d1a"/>
+    </linearGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="860" height="160" rx="14" fill="url(#bg)"/>
+  <rect width="860" height="2.5" rx="1" fill="url(#acc)"/>
+  <rect y="157.5" width="860" height="2.5" rx="1" fill="url(#acc)"/>
+
+  <!-- Step 1 -->
+  <rect x="20" y="30" width="130" height="100" rx="10" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.2)" stroke-width="1"/>
+  <text x="85" y="62" text-anchor="middle" font-family="sans-serif" font-size="22">▶</text>
+  <text x="85" y="85" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#eeeef5">Open YouTube</text>
+  <text x="85" y="100" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">Navigate to any</text>
+  <text x="85" y="113" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">YouTube video</text>
+
+  <!-- Arrow 1 -->
+  <line x1="155" y1="80" x2="180" y2="80" stroke="rgba(99,102,241,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="180,75 190,80 180,85" fill="rgba(99,102,241,0.5)"/>
+
+  <!-- Step 2 -->
+  <rect x="194" y="30" width="130" height="100" rx="10" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.2)" stroke-width="1"/>
+  <text x="259" y="62" text-anchor="middle" font-family="sans-serif" font-size="22">📷</text>
+  <text x="259" y="85" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#eeeef5">Capture Frame</text>
+  <text x="259" y="100" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">Click the camera icon</text>
+  <text x="259" y="113" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">or Capture button</text>
+
+  <!-- Arrow 2 -->
+  <line x1="329" y1="80" x2="354" y2="80" stroke="rgba(99,102,241,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="354,75 364,80 354,85" fill="rgba(99,102,241,0.5)"/>
+
+  <!-- Step 3 -->
+  <rect x="368" y="30" width="130" height="100" rx="10" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.2)" stroke-width="1"/>
+  <text x="433" y="62" text-anchor="middle" font-family="sans-serif" font-size="22">🔍</text>
+  <text x="433" y="85" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#eeeef5">Extract &amp; Explain</text>
+  <text x="433" y="100" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">AI reads slide text</text>
+  <text x="433" y="113" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">and explains concepts</text>
+
+  <!-- Arrow 3 -->
+  <line x1="503" y1="80" x2="528" y2="80" stroke="rgba(99,102,241,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="528,75 538,80 528,85" fill="rgba(99,102,241,0.5)"/>
+
+  <!-- Step 4 -->
+  <rect x="542" y="30" width="130" height="100" rx="10" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.2)" stroke-width="1"/>
+  <text x="607" y="62" text-anchor="middle" font-family="sans-serif" font-size="22">💬</text>
+  <text x="607" y="85" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#eeeef5">Chat with AI</text>
+  <text x="607" y="100" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">Ask questions using</text>
+  <text x="607" y="113" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">your notes as context</text>
+
+  <!-- Arrow 4 -->
+  <line x1="677" y1="80" x2="702" y2="80" stroke="rgba(99,102,241,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="702,75 712,80 702,85" fill="rgba(99,102,241,0.5)"/>
+
+  <!-- Step 5 -->
+  <rect x="716" y="30" width="130" height="100" rx="10" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.35)" stroke-width="1"/>
+  <text x="781" y="62" text-anchor="middle" font-family="sans-serif" font-size="22">📄</text>
+  <text x="781" y="85" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#eeeef5">Export PDF</text>
+  <text x="781" y="100" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">Download polished</text>
+  <text x="781" y="113" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#55556a">study notes with math</text>
+</svg>
