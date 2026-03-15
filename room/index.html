@@ -1,465 +1,894 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NotePilot — Study Room</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --bg:#07070d;--bg2:#0d0d16;--card:#111119;--border:rgba(255,255,255,.07);
-  --text:#eeeef5;--text2:#9090a8;--muted:#55556a;
-  --accent:#6366f1;--accent-l:#818cf8;--green:#10b981;--red:#ef4444;
-}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
-  background:var(--bg);color:var(--text);min-height:100vh;
-  -webkit-font-smoothing:antialiased;}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotePilot — Study Room</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
 
-/* Layout */
-.page{max-width:680px;margin:0 auto;padding:0 0 60px}
+    :root {
+      --bg: #07070d;
+      --bg2: #0d0d16;
+      --card: #111119;
+      --border: rgba(255, 255, 255, .07);
+      --text: #eeeef5;
+      --text2: #9090a8;
+      --muted: #55556a;
+      --accent: #6366f1;
+      --accent-l: #818cf8;
+      --green: #10b981;
+      --red: #ef4444;
+    }
 
-/* Header */
-.hdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 20px;
-  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
-.hdr-left{display:flex;align-items:center;gap:8px}
-.logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#6366f1,#a855f7);
-  display:flex;align-items:center;justify-content:center}
-.logo svg{width:14px;height:14px}
-.brand{font-size:.88rem;font-weight:800;letter-spacing:1.2px;
-  background:linear-gradient(135deg,#818cf8,#c084fc);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-.share-pill{font-size:.62rem;font-weight:600;padding:3px 9px;border-radius:50px;
-  background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.15);}
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
 
-/* Meta bar */
-.meta-bar{padding:12px 20px;background:rgba(99,102,241,.04);border-bottom:1px solid var(--border)}
-.meta-title{font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:3px}
-.meta-sub{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.meta-dot{width:3px;height:3px;border-radius:50%;background:var(--muted)}
+    .page {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 0 60px
+    }
 
-/* Timeline summary strip */
-.timeline-strip{padding:10px 20px;border-bottom:1px solid var(--border);
-  background:var(--bg2);display:flex;gap:8px;overflow-x:auto;align-items:flex-start}
-.timeline-strip::-webkit-scrollbar{height:2px}
-.timeline-strip::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:99px}
-.tl-seg{flex-shrink:0;cursor:pointer;padding:5px 9px;background:var(--card);
-  border:1px solid var(--border);border-radius:7px;transition:border-color .15s}
-.tl-seg:hover{border-color:var(--accent-l)}
-.tl-seg-ts{font-size:.6rem;font-weight:700;color:var(--accent-l);font-variant-numeric:tabular-nums}
-.tl-seg-title{font-size:.68rem;color:var(--text2);margin-top:2px;max-width:120px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .hdr {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
 
-/* Notes */
-.notes-section{padding:14px 20px 0}
-.section-heading{font-size:.65rem;font-weight:700;color:var(--muted);letter-spacing:.8px;
-  text-transform:uppercase;margin-bottom:10px}
-.note-card{background:var(--card);border:1px solid var(--border);border-radius:10px;
-  margin-bottom:12px;overflow:hidden;transition:border-color .2s}
-.note-card:hover{border-color:rgba(255,255,255,.1)}
+    .hdr-left {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
 
-.note-top{display:flex;align-items:center;gap:8px;padding:8px 12px;
-  border-bottom:1px solid var(--border)}
-.note-ts-pill{font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:50px;
-  background:rgba(99,102,241,.12);color:var(--accent-l);border:1px solid rgba(99,102,241,.15);
-  font-variant-numeric:tabular-nums;flex-shrink:0;cursor:pointer;text-decoration:none}
-.note-ts-pill:hover{background:rgba(99,102,241,.2)}
-.note-num{font-size:.7rem;color:var(--muted);flex:1}
-.note-seg-tag{font-size:.58rem;padding:2px 7px;border-radius:50px;
-  background:rgba(16,185,129,.08);color:var(--green);border:1px solid rgba(16,185,129,.12)}
+    .logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
 
-.note-img{width:100%;border-bottom:1px solid var(--border)}
-.note-img img{width:100%;height:auto;display:block;max-height:200px;object-fit:cover}
-.note-body{padding:8px 12px 6px}
-.note-text{font-size:.75rem;color:var(--text2);line-height:1.55;margin-bottom:6px}
-.note-text.empty{color:var(--muted);font-style:italic}
+    .logo svg {
+      width: 14px;
+      height: 14px
+    }
 
-.ocr-block{background:rgba(99,102,241,.04);border:1px solid rgba(99,102,241,.08);
-  border-radius:6px;padding:6px 10px;margin-bottom:6px}
-.ocr-label{font-size:.58rem;font-weight:700;color:var(--accent-l);text-transform:uppercase;
-  letter-spacing:.5px;display:block;margin-bottom:3px}
-.ocr-text{font-size:.7rem;color:var(--text2);line-height:1.5;white-space:pre-wrap}
+    .brand {
+      font-size: .88rem;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      background: linear-gradient(135deg, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-.expl-block{background:rgba(168,85,247,.05);border:1px solid rgba(168,85,247,.1);
-  border-radius:6px;padding:6px 10px;margin-bottom:6px}
-.expl-label{font-size:.58rem;font-weight:700;color:#c084fc;text-transform:uppercase;
-  letter-spacing:.5px;display:block;margin-bottom:3px}
+    .share-pill {
+      font-size: .62rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 50px;
+      background: rgba(16, 185, 129, .1);
+      color: var(--green);
+      border: 1px solid rgba(16, 185, 129, .15);
+    }
 
-/* Annotations */
-.annotations{border-top:1px solid var(--border);padding:8px 12px}
-.ann-heading{font-size:.6rem;font-weight:700;color:var(--muted);text-transform:uppercase;
-  letter-spacing:.5px;margin-bottom:7px}
-.ann-item{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start}
-.ann-avatar{width:24px;height:24px;border-radius:50%;background:rgba(99,102,241,.15);
-  display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;
-  color:var(--accent-l);flex-shrink:0}
-.ann-content{flex:1;min-width:0}
-.ann-name{font-size:.65rem;font-weight:600;color:var(--text);margin-bottom:2px}
-.ann-text{font-size:.7rem;color:var(--text2);line-height:1.45}
-.ann-time{font-size:.58rem;color:var(--muted);margin-top:2px}
+    .meta-bar {
+      padding: 12px 20px;
+      background: rgba(99, 102, 241, .04);
+      border-bottom: 1px solid var(--border)
+    }
 
-.ann-form{display:flex;gap:6px;margin-top:6px}
-.ann-input{flex:1;padding:6px 10px;background:var(--bg);border:1px solid var(--border);
-  border-radius:7px;font-size:.72rem;color:var(--text);outline:none;font-family:inherit;
-  transition:border-color .2s}
-.ann-input::placeholder{color:var(--muted)}
-.ann-input:focus{border-color:var(--accent)}
-.ann-submit{padding:6px 12px;background:linear-gradient(135deg,var(--accent),#a855f7);
-  color:#fff;border:none;border-radius:7px;font-size:.7rem;font-weight:600;
-  cursor:pointer;transition:all .2s;white-space:nowrap;font-family:inherit}
-.ann-submit:hover{transform:translateY(-1px)}
-.ann-submit:disabled{opacity:.4;cursor:not-allowed;transform:none}
+    .meta-title {
+      font-size: .88rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px
+    }
 
-/* Loading / empty states */
-.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  min-height:60vh;gap:12px;color:var(--muted)}
-.spinner{width:28px;height:28px;border:2px solid rgba(99,102,241,.2);
-  border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{font-size:.78rem;color:var(--muted)}
+    .meta-sub {
+      font-size: .68rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap
+    }
 
-.error-state{text-align:center;padding:60px 20px;color:var(--muted)}
-.error-state p{font-size:.82rem;color:var(--text2);margin-bottom:6px}
-.error-state span{font-size:.72rem}
+    .meta-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--muted)
+    }
 
-/* Toast */
-.toast-container{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
-  z-index:9999;display:flex;flex-direction:column;gap:6px;align-items:center;
-  pointer-events:none}
-.toast{padding:8px 16px;border-radius:9px;font-size:.73rem;font-weight:500;
-  backdrop-filter:blur(12px);border:1px solid var(--border);pointer-events:auto;
-  animation:fadeUp .2s ease-out}
-.toast-success{background:rgba(16,185,129,.12);color:var(--green)}
-.toast-error{background:rgba(239,68,68,.12);color:var(--red)}
-.toast-info{background:rgba(99,102,241,.12);color:var(--accent-l)}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .timeline-strip {
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      align-items: flex-start
+    }
 
-.katex-display{overflow-x:auto;padding:4px 0}
-</style>
+    .timeline-strip::-webkit-scrollbar {
+      height: 2px
+    }
+
+    .timeline-strip::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, .08);
+      border-radius: 99px
+    }
+
+    .tl-seg {
+      flex-shrink: 0;
+      cursor: pointer;
+      padding: 5px 9px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      transition: border-color .15s
+    }
+
+    .tl-seg:hover {
+      border-color: var(--accent-l)
+    }
+
+    .tl-seg-ts {
+      font-size: .6rem;
+      font-weight: 700;
+      color: var(--accent-l);
+      font-variant-numeric: tabular-nums
+    }
+
+    .tl-seg-title {
+      font-size: .68rem;
+      color: var(--text2);
+      margin-top: 2px;
+      max-width: 120px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .notes-section {
+      padding: 14px 20px 0
+    }
+
+    .section-heading {
+      font-size: .65rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      margin-bottom: 10px
+    }
+
+    .note-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: border-color .2s
+    }
+
+    .note-card:hover {
+      border-color: rgba(255, 255, 255, .1)
+    }
+
+    .note-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .note-ts-pill {
+      font-size: .62rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 50px;
+      background: rgba(99, 102, 241, .12);
+      color: var(--accent-l);
+      border: 1px solid rgba(99, 102, 241, .15);
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+      cursor: pointer;
+      text-decoration: none
+    }
+
+    .note-ts-pill:hover {
+      background: rgba(99, 102, 241, .2)
+    }
+
+    .note-num {
+      font-size: .7rem;
+      color: var(--muted);
+      flex: 1
+    }
+
+    .note-seg-tag {
+      font-size: .58rem;
+      padding: 2px 7px;
+      border-radius: 50px;
+      background: rgba(16, 185, 129, .08);
+      color: var(--green);
+      border: 1px solid rgba(16, 185, 129, .12)
+    }
+
+    .note-img {
+      width: 100%;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .note-img img {
+      width: 100%;
+      height: auto;
+      display: block;
+      max-height: 200px;
+      object-fit: cover
+    }
+
+    .note-body {
+      padding: 8px 12px 6px
+    }
+
+    .note-text {
+      font-size: .75rem;
+      color: var(--text2);
+      line-height: 1.55;
+      margin-bottom: 6px;
+      white-space: pre-wrap
+    }
+
+    .note-text.empty {
+      color: var(--muted);
+      font-style: italic
+    }
+
+    .ocr-block {
+      background: rgba(99, 102, 241, .04);
+      border: 1px solid rgba(99, 102, 241, .08);
+      border-radius: 6px;
+      padding: 6px 10px;
+      margin-bottom: 6px
+    }
+
+    .ocr-label {
+      font-size: .58rem;
+      font-weight: 700;
+      color: var(--accent-l);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      display: block;
+      margin-bottom: 3px
+    }
+
+    .ocr-text {
+      font-size: .7rem;
+      color: var(--text2);
+      line-height: 1.5;
+      white-space: pre-wrap
+    }
+
+    .expl-block {
+      background: rgba(168, 85, 247, .05);
+      border: 1px solid rgba(168, 85, 247, .1);
+      border-radius: 6px;
+      padding: 6px 10px;
+      margin-bottom: 6px
+    }
+
+    .expl-label {
+      font-size: .58rem;
+      font-weight: 700;
+      color: #c084fc;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      display: block;
+      margin-bottom: 3px
+    }
+
+    .annotations {
+      border-top: 1px solid var(--border);
+      padding: 8px 12px
+    }
+
+    .ann-heading {
+      font-size: .6rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 7px
+    }
+
+    .ann-item {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: flex-start
+    }
+
+    .ann-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .6rem;
+      font-weight: 700;
+      color: var(--accent-l);
+      flex-shrink: 0
+    }
+
+    .ann-content {
+      flex: 1;
+      min-width: 0
+    }
+
+    .ann-name {
+      font-size: .65rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px
+    }
+
+    .ann-text {
+      font-size: .7rem;
+      color: var(--text2);
+      line-height: 1.45
+    }
+
+    .ann-time {
+      font-size: .58rem;
+      color: var(--muted);
+      margin-top: 2px
+    }
+
+    .ann-form {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px
+    }
+
+    .ann-input {
+      flex: 1;
+      padding: 6px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: .72rem;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      transition: border-color .2s
+    }
+
+    .ann-input::placeholder {
+      color: var(--muted)
+    }
+
+    .ann-input:focus {
+      border-color: var(--accent)
+    }
+
+    .ann-submit {
+      padding: 6px 12px;
+      background: linear-gradient(135deg, var(--accent), #a855f7);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: .7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+      font-family: inherit
+    }
+
+    .ann-submit:hover {
+      transform: translateY(-1px)
+    }
+
+    .ann-submit:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+      transform: none
+    }
+
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      gap: 12px;
+      color: var(--muted)
+    }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid rgba(99, 102, 241, .2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .loading-text {
+      font-size: .78rem;
+      color: var(--muted)
+    }
+
+    .error-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted)
+    }
+
+    .error-state p {
+      font-size: .82rem;
+      color: var(--text2);
+      margin-bottom: 6px
+    }
+
+    .error-state span {
+      font-size: .72rem
+    }
+
+    .toast-container {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+      pointer-events: none
+    }
+
+    .toast {
+      padding: 8px 16px;
+      border-radius: 9px;
+      font-size: .73rem;
+      font-weight: 500;
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      pointer-events: auto;
+      animation: fadeUp .2s ease-out
+    }
+
+    .toast-success {
+      background: rgba(16, 185, 129, .12);
+      color: var(--green)
+    }
+
+    .toast-error {
+      background: rgba(239, 68, 68, .12);
+      color: var(--red)
+    }
+
+    .toast-info {
+      background: rgba(99, 102, 241, .12);
+      color: var(--accent-l)
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .katex-display {
+      overflow-x: auto;
+      padding: 4px 0
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="toast-container" id="toasts"></div>
-
-<!-- Header — rendered by JS after load -->
-<div id="app">
-  <div class="loading-state" id="loading">
-    <div class="spinner"></div>
-    <div class="loading-text">Loading study room...</div>
+  <div class="toast-container" id="toasts"></div>
+  <div id="app">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <div class="loading-text">Loading study room...</div>
+    </div>
   </div>
-</div>
 
-<script>
-// ============ URL PARAMS ============
-const params = new URLSearchParams(location.search);
-const ROOM_ID = params.get('r');
-const DB_HOST = params.get('db') ? 'https://' + decodeURIComponent(params.get('db')) : '';
+  <script>
+    // ============ URL PARAMS ============
+    const params = new URLSearchParams(location.search);
+    const ROOM_ID = params.get('r');
+    const DB_HOST = params.get('db') ? 'https://' + decodeURIComponent(params.get('db')) : '';
 
-// ============ SESSION ============
-function getSession() {
-  let s = localStorage.getItem('np_session');
-  if (!s) { s = Math.random().toString(36).slice(2, 12); localStorage.setItem('np_session', s); }
-  return s;
-}
-function getDisplayName() { return localStorage.getItem('np_viewer_name') || ''; }
-function setDisplayName(n) { localStorage.setItem('np_viewer_name', n); }
+    // ============ SESSION / NAME ============
+    function getSession() {
+      let s = localStorage.getItem('np_session');
+      if (!s) { s = Math.random().toString(36).slice(2, 12); localStorage.setItem('np_session', s); }
+      return s;
+    }
+    function getDisplayName() { return localStorage.getItem('np_viewer_name') || ''; }
+    function setDisplayName(n) { localStorage.setItem('np_viewer_name', n); }
+    const SESSION_ID = getSession();
 
-const SESSION_ID = getSession();
-
-// ============ FIREBASE REST ============
-async function fbGet(path) {
-  const res = await fetch(`${DB_HOST}/${path}.json`);
-  if (!res.ok) throw new Error('Firebase fetch failed: ' + res.status);
-  return res.json();
-}
-
-async function fbPut(path, data) {
-  const res = await fetch(`${DB_HOST}/${path}.json`, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) throw new Error('Firebase write failed: ' + res.status);
-  return res.json();
-}
-
-// ============ MATH RENDERING ============
-function renderMath(text) {
-  if (!text || typeof katex === 'undefined') return escHtml(text || '');
-  const parts = [];
-  let last = 0;
-  const re = /\$\$([\s\S]*?)\$\$|\$([^\$
-]+?)\$/g;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push(escHtml(text.slice(last, m.index)));
-    try {
-      const isDisp = m[1] !== undefined;
-      parts.push(katex.renderToString((m[1] || m[2]).trim(), { displayMode: isDisp, throwOnError: false }));
-    } catch (_) { parts.push(escHtml(m[0])); }
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) parts.push(escHtml(text.slice(last)));
-  return parts.join('').replace(/\n/g, '<br>').replace(/\n/g, '<br>');
-}
-
-function escHtml(s) {
-  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-}
-
-function fmtTime(secs) {
-  const m = Math.floor(secs / 60), s = secs % 60;
-  return m + ':' + String(s).padStart(2, '0');
-}
-
-function timeAgo(ts) {
-  const diff = Date.now() - ts;
-  if (diff < 60000) return 'just now';
-  if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
-  if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
-  return new Date(ts).toLocaleDateString();
-}
-
-function avatarInitials(name) {
-  return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-}
-
-// ============ TOAST ============
-function toast(msg, type) {
-  const t = document.createElement('div');
-  t.className = 'toast toast-' + (type || 'info');
-  t.textContent = msg;
-  document.getElementById('toasts').appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'all .2s'; setTimeout(() => t.remove(), 200); }, 2500);
-}
-
-// ============ FIND SEGMENT FOR A TIMESTAMP ============
-function findSegment(videoTime, summary) {
-  if (!summary || !summary.length) return null;
-  let found = null;
-  for (let i = 0; i < summary.length; i++) {
-    if (videoTime >= summary[i].start) found = summary[i];
-  }
-  return found;
-}
-
-// ============ RENDER ROOM ============
-function renderRoom(room, annotations) {
-  const meta = room.meta || {};
-  const notes = room.notes || [];
-  const summary = room.summary || [];
-  const anns = annotations || {};
-
-  const timelineHtml = summary.length
-    ? `<div class="timeline-strip">${summary.map((s, i) =>
-        `<div class="tl-seg" onclick="window.open('https://www.youtube.com/watch?v=${escHtml(meta.videoId)}&t=${s.start}s','_blank')">
-           <div class="tl-seg-ts">${fmtTime(s.start)}</div>
-           <div class="tl-seg-title">${escHtml(s.title)}</div>
-         </div>`
-      ).join('')}</div>`
-    : '';
-
-  const notesHtml = notes.map((note, idx) => {
-    const seg = findSegment(note.videoTime, summary);
-    const noteAnns = Object.values(anns[idx] || {});
-    noteAnns.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-
-    const annsHtml = noteAnns.map(a =>
-      `<div class="ann-item">
-         <div class="ann-avatar" style="background:${stringToColor(a.name)}">${avatarInitials(a.name)}</div>
-         <div class="ann-content">
-           <div class="ann-name">${escHtml(a.name)}</div>
-           <div class="ann-text">${escHtml(a.text)}</div>
-           <div class="ann-time">${timeAgo(a.createdAt || 0)}</div>
-         </div>
-       </div>`
-    ).join('');
-
-    const userAnn = noteAnns.find(a => a.sessionId === SESSION_ID);
-
-    return `<div class="note-card" id="note-${idx}">
-      <div class="note-top">
-        <a class="note-ts-pill" href="https://www.youtube.com/watch?v=${escHtml(meta.videoId)}&t=${note.videoTime}s" target="_blank">${escHtml(note.timestamp)}</a>
-        <span class="note-num">Note #${idx + 1}</span>
-        ${seg ? `<span class="note-seg-tag">${escHtml(seg.title)}</span>` : ''}
-      </div>
-      <div class="note-img"><img src="${note.snapshot}" alt="Frame at ${escHtml(note.timestamp)}" loading="lazy"></div>
-      <div class="note-body">
-        ${note.note ? `<div class="note-text">${escHtml(note.note)}</div>` : '<div class="note-text empty">(no note)</div>'}
-        ${note.ocrText ? `<div class="ocr-block"><span class="ocr-label">Extracted Text</span><div class="ocr-text">${renderMath(note.ocrText)}</div></div>` : ''}
-        ${note.aiExplanation ? `<div class="expl-block"><span class="expl-label">&#10024; AI Explanation</span><div class="ocr-text">${renderMath(note.aiExplanation)}</div></div>` : ''}
-      </div>
-      <div class="annotations">
-        <div class="ann-heading">${noteAnns.length ? noteAnns.length + ' annotation' + (noteAnns.length !== 1 ? 's' : '') : 'No annotations yet'}</div>
-        ${annsHtml}
-        <div class="ann-form">
-          <input class="ann-input" placeholder="Add your annotation..." data-idx="${idx}" maxlength="500"
-                 value="${escHtml(userAnn ? '' : '')}"
-                 id="ann-input-${idx}">
-          <button class="ann-submit" data-idx="${idx}" id="ann-btn-${idx}">Post</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  const createdDate = meta.createdAt ? new Date(meta.createdAt).toLocaleDateString() : '';
-
-  document.getElementById('app').innerHTML = `
-    <header class="hdr">
-      <div class="hdr-left">
-        <div class="logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
-            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-            <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-          </svg>
-        </div>
-        <span class="brand">NOTEPILOT</span>
-      </div>
-      <span class="share-pill">Shared room</span>
-    </header>
-
-    <div class="meta-bar">
-      <div class="meta-title">${escHtml(meta.videoTitle || 'Study Notes')}</div>
-      <div class="meta-sub">
-        <span>Shared by ${escHtml(meta.ownerName || 'Anonymous')}</span>
-        ${createdDate ? `<span class="meta-dot"></span><span>${createdDate}</span>` : ''}
-        <span class="meta-dot"></span>
-        <span>${notes.length} capture${notes.length !== 1 ? 's' : ''}</span>
-        ${summary.length ? `<span class="meta-dot"></span><span>${summary.length} topics</span>` : ''}
-      </div>
-    </div>
-
-    ${timelineHtml}
-
-    <div class="notes-section page">
-      <div class="section-heading">Captured Notes</div>
-      ${notesHtml}
-    </div>
-  `;
-
-  // Wire up annotation post buttons
-  document.querySelectorAll('.ann-submit').forEach(btn => {
-    btn.addEventListener('click', () => handleAnnotation(parseInt(btn.dataset.idx)));
-  });
-  document.querySelectorAll('.ann-input').forEach(inp => {
-    inp.addEventListener('keypress', e => {
-      if (e.key === 'Enter') handleAnnotation(parseInt(inp.dataset.idx));
-    });
-  });
-}
-
-// ============ ANNOTATION HANDLING ============
-async function handleAnnotation(noteIdx) {
-  const input = document.getElementById(`ann-input-${noteIdx}`);
-  const btn   = document.getElementById(`ann-btn-${noteIdx}`);
-  if (!input || !btn) return;
-
-  const text = input.value.trim();
-  if (!text) { toast('Type something first', 'error'); return; }
-
-  let name = getDisplayName();
-  if (!name) {
-    name = prompt('Your name (shown with annotation):') || 'Anonymous';
-    setDisplayName(name);
-  }
-
-  btn.disabled = true; btn.textContent = 'Posting...';
-
-  try {
-    const path = `rooms/${ROOM_ID}/annotations/${noteIdx}/${SESSION_ID}`;
-    await fbPut(path, { name, text, createdAt: Date.now(), sessionId: SESSION_ID });
-    input.value = '';
-    toast('Annotation posted!', 'success');
-
-    // Refresh annotations for this note only
-    const allAnns = await fbGet(`rooms/${ROOM_ID}/annotations`);
-    refreshAnnotations(noteIdx, Object.values(allAnns?.[noteIdx] || {}));
-  } catch (err) {
-    toast('Post failed: ' + err.message.slice(0, 60), 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Post';
-  }
-}
-
-function refreshAnnotations(noteIdx, anns) {
-  const card = document.getElementById(`note-${noteIdx}`);
-  if (!card) return;
-  const annSection = card.querySelector('.annotations');
-  if (!annSection) return;
-
-  anns.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  const heading = annSection.querySelector('.ann-heading');
-  if (heading) heading.textContent = anns.length + ' annotation' + (anns.length !== 1 ? 's' : '');
-
-  // Remove old ann items (keep heading and form)
-  annSection.querySelectorAll('.ann-item').forEach(i => i.remove());
-
-  const form = annSection.querySelector('.ann-form');
-  anns.forEach(a => {
-    const d = document.createElement('div');
-    d.className = 'ann-item';
-    d.innerHTML = `<div class="ann-avatar" style="background:${stringToColor(a.name)}">${avatarInitials(a.name)}</div>
-      <div class="ann-content">
-        <div class="ann-name">${escHtml(a.name)}</div>
-        <div class="ann-text">${escHtml(a.text)}</div>
-        <div class="ann-time">${timeAgo(a.createdAt || 0)}</div>
-      </div>`;
-    annSection.insertBefore(d, form);
-  });
-}
-
-// Deterministic colour from a name string
-function stringToColor(str) {
-  const colors = ['rgba(99,102,241,.2)', 'rgba(168,85,247,.2)', 'rgba(16,185,129,.2)', 'rgba(245,158,11,.2)', 'rgba(239,68,68,.2)'];
-  let h = 0;
-  for (let i = 0; i < (str || '').length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xFFFFFF;
-  return colors[Math.abs(h) % colors.length];
-}
-
-// ============ LIVE ANNOTATION POLLING ============
-let pollInterval = null;
-async function startPolling(notes) {
-  pollInterval = setInterval(async () => {
-    try {
-      const anns = await fbGet(`rooms/${ROOM_ID}/annotations`);
-      if (!anns) return;
-      notes.forEach((_, idx) => {
-        const noteAnns = Object.values(anns[idx] || {});
-        refreshAnnotations(idx, noteAnns);
+    // ============ FIREBASE REST ============
+    async function fbGet(path) {
+      const res = await fetch(DB_HOST + '/' + path + '.json');
+      if (!res.ok) throw new Error('Firebase error ' + res.status);
+      return res.json();
+    }
+    async function fbPut(path, data) {
+      const res = await fetch(DB_HOST + '/' + path + '.json', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
       });
-    } catch (_) {}
-  }, 8000);
-}
+      if (!res.ok) throw new Error('Firebase write error ' + res.status);
+      return res.json();
+    }
 
-// ============ MAIN ============
-async function main() {
-  if (!ROOM_ID || !DB_HOST) {
-    document.getElementById('app').innerHTML = `
-      <div class="error-state">
-        <p>Invalid room link</p>
-        <span>This URL is missing the room ID or database host.</span>
-      </div>`;
-    return;
-  }
+    // ============ FIREBASE ARRAY FIX ============
+    // Firebase returns arrays as { "0": ..., "1": ... } objects.
+    // This converts either format to a proper JS array.
+    function toArray(val) {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+      // Object with numeric string keys — convert preserving order
+      return Object.keys(val)
+        .sort((a, b) => parseInt(a) - parseInt(b))
+        .map(k => val[k]);
+    }
 
-  try {
-    const room = await fbGet(`rooms/${ROOM_ID}`);
-    if (!room || !room.meta) throw new Error('Room not found');
+    // ============ MATH RENDERING ============
+    function renderMath(text) {
+      if (!text || typeof katex === 'undefined') return escHtml(text || '');
+      const parts = [];
+      let last = 0;
+      // Match $$...$$ display first, then $...$ inline
+      const re = /\$\$([\s\S]*?)\$\$|\$([^\$\n]+?)\$/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) parts.push(escHtml(text.slice(last, m.index)));
+        try {
+          const isDisp = m[1] !== undefined;
+          parts.push(katex.renderToString((m[1] || m[2]).trim(), { displayMode: isDisp, throwOnError: false }));
+        } catch (_) { parts.push(escHtml(m[0])); }
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) parts.push(escHtml(text.slice(last)));
+      return parts.join('');
+    }
 
-    const annotations = await fbGet(`rooms/${ROOM_ID}/annotations`);
-    renderRoom(room, annotations || {});
-    startPolling(room.notes || []);
-    document.title = `NotePilot — ${room.meta.videoTitle || 'Study Room'}`;
-  } catch (err) {
-    document.getElementById('app').innerHTML = `
-      <div class="error-state">
-        <p>Room not found</p>
-        <span>${escHtml(err.message)}</span>
-      </div>`;
-  }
-}
+    function escHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+    }
 
-main();
-</script>
+    function fmtTime(secs) {
+      secs = parseInt(secs) || 0;
+      const m = Math.floor(secs / 60), s = secs % 60;
+      return m + ':' + String(s).padStart(2, '0');
+    }
+
+    function timeAgo(ts) {
+      const diff = Date.now() - ts;
+      if (diff < 60000) return 'just now';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+      return new Date(ts).toLocaleDateString();
+    }
+
+    function avatarInitials(name) {
+      return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    }
+
+    function stringToColor(str) {
+      const colors = [
+        'rgba(99,102,241,.25)', 'rgba(168,85,247,.25)', 'rgba(16,185,129,.25)',
+        'rgba(245,158,11,.25)', 'rgba(239,68,68,.25)'
+      ];
+      let h = 0;
+      for (let i = 0; i < (str || '').length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xFFFFFF;
+      return colors[Math.abs(h) % colors.length];
+    }
+
+    // ============ TOAST ============
+    function toast(msg, type) {
+      const t = document.createElement('div');
+      t.className = 'toast toast-' + (type || 'info');
+      t.textContent = msg;
+      document.getElementById('toasts').appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'all .2s'; setTimeout(() => t.remove(), 200); }, 2500);
+    }
+
+    // ============ FIND SEGMENT FOR A TIMESTAMP ============
+    function findSegment(videoTime, summary) {
+      if (!summary || !summary.length) return null;
+      let found = null;
+      for (let i = 0; i < summary.length; i++) {
+        if (parseInt(videoTime) >= parseInt(summary[i].start)) found = summary[i];
+      }
+      return found;
+    }
+
+    // ============ RENDER ANNOTATIONS for one note ============
+    function buildAnnsHtml(noteAnns) {
+      return noteAnns.map(a =>
+        '<div class="ann-item">' +
+        '<div class="ann-avatar" style="background:' + stringToColor(a.name) + '">' + avatarInitials(a.name) + '</div>' +
+        '<div class="ann-content">' +
+        '<div class="ann-name">' + escHtml(a.name) + '</div>' +
+        '<div class="ann-text">' + escHtml(a.text) + '</div>' +
+        '<div class="ann-time">' + timeAgo(a.createdAt || 0) + '</div>' +
+        '</div></div>'
+      ).join('');
+    }
+
+    // ============ RENDER ROOM ============
+    function renderRoom(room, annotations) {
+      const meta = room.meta || {};
+
+      // FIX: Firebase returns arrays as objects with numeric string keys
+      const notes = toArray(room.notes);
+      const summary = toArray(room.summary);
+
+      // annotations is { "0": { sessionId: {...} }, "1": {...} }
+      const anns = annotations || {};
+
+      // ── Timeline strip ──
+      const timelineHtml = summary.length
+        ? '<div class="timeline-strip">' +
+        summary.map(s =>
+          '<div class="tl-seg" onclick="window.open(\'https://www.youtube.com/watch?v=' +
+          encodeURIComponent(meta.videoId || '') + '&t=' + parseInt(s.start) + 's\',\'_blank\')">' +
+          '<div class="tl-seg-ts">' + fmtTime(s.start) + '</div>' +
+          '<div class="tl-seg-title">' + escHtml(s.title) + '</div>' +
+          '</div>'
+        ).join('') + '</div>'
+        : '';
+
+      // ── Notes ──
+      const notesHtml = notes.map((note, idx) => {
+        const seg = findSegment(note.videoTime, summary);
+
+        // FIX: annotation keys are string indices ("0","1"...) — use String(idx)
+        const noteAnnsRaw = anns[String(idx)] || {};
+        const noteAnns = toArray(
+          // Firebase may store annotations as object keyed by sessionId
+          // Each value is the annotation object
+          typeof noteAnnsRaw === 'object' && !Array.isArray(noteAnnsRaw)
+            ? Object.values(noteAnnsRaw)
+            : noteAnnsRaw
+        );
+        noteAnns.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+        const segTag = seg ? '<span class="note-seg-tag">' + escHtml(seg.title) + '</span>' : '';
+        const noteText = note.note
+          ? '<div class="note-text">' + escHtml(note.note) + '</div>'
+          : '<div class="note-text empty">(no note)</div>';
+        const ocrBlock = note.ocrText
+          ? '<div class="ocr-block"><span class="ocr-label">Extracted Text</span><div class="ocr-text">' + renderMath(note.ocrText) + '</div></div>'
+          : '';
+        const explBlock = note.aiExplanation
+          ? '<div class="expl-block"><span class="expl-label">&#10024; AI Explanation</span><div class="ocr-text">' + renderMath(note.aiExplanation) + '</div></div>'
+          : '';
+        const annCountLabel = noteAnns.length
+          ? noteAnns.length + ' annotation' + (noteAnns.length !== 1 ? 's' : '')
+          : 'No annotations yet';
+
+        const ytLink = 'https://www.youtube.com/watch?v=' + encodeURIComponent(meta.videoId || '') + '&t=' + (note.videoTime || 0) + 's';
+
+        return '<div class="note-card" id="note-' + idx + '">' +
+          '<div class="note-top">' +
+          '<a class="note-ts-pill" href="' + ytLink + '" target="_blank">' + escHtml(note.timestamp) + '</a>' +
+          '<span class="note-num">Note #' + (idx + 1) + '</span>' +
+          segTag +
+          '</div>' +
+          '<div class="note-img"><img src="' + note.snapshot + '" alt="Frame" loading="lazy"></div>' +
+          '<div class="note-body">' + noteText + ocrBlock + explBlock + '</div>' +
+          '<div class="annotations">' +
+          '<div class="ann-heading">' + annCountLabel + '</div>' +
+          buildAnnsHtml(noteAnns) +
+          '<div class="ann-form">' +
+          '<input class="ann-input" placeholder="Add your annotation..." data-idx="' + idx + '" maxlength="500" id="ann-input-' + idx + '">' +
+          '<button class="ann-submit" data-idx="' + idx + '" id="ann-btn-' + idx + '">Post</button>' +
+          '</div>' +
+          '</div>' +
+          '</div>';
+      }).join('');
+
+      const createdDate = meta.createdAt ? new Date(meta.createdAt).toLocaleDateString() : '';
+      const statLine =
+        '<span>Shared by ' + escHtml(meta.ownerName || 'Anonymous') + '</span>' +
+        (createdDate ? '<span class="meta-dot"></span><span>' + createdDate + '</span>' : '') +
+        '<span class="meta-dot"></span>' +
+        '<span>' + notes.length + ' capture' + (notes.length !== 1 ? 's' : '') + '</span>' +
+        (summary.length ? '<span class="meta-dot"></span><span>' + summary.length + ' topics</span>' : '');
+
+      document.getElementById('app').innerHTML =
+        '<header class="hdr">' +
+        '<div class="hdr-left">' +
+        '<div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div>' +
+        '<span class="brand">NOTEPILOT</span>' +
+        '</div>' +
+        '<span class="share-pill">Shared room</span>' +
+        '</header>' +
+
+        '<div class="meta-bar">' +
+        '<div class="meta-title">' + escHtml(meta.videoTitle || 'Study Notes') + '</div>' +
+        '<div class="meta-sub">' + statLine + '</div>' +
+        '</div>' +
+
+        timelineHtml +
+
+        '<div class="notes-section page">' +
+        '<div class="section-heading">Captured Notes</div>' +
+        notesHtml +
+        '</div>';
+
+      // Wire buttons
+      document.querySelectorAll('.ann-submit').forEach(btn => {
+        btn.addEventListener('click', () => handleAnnotation(parseInt(btn.dataset.idx)));
+      });
+      document.querySelectorAll('.ann-input').forEach(inp => {
+        inp.addEventListener('keypress', e => { if (e.key === 'Enter') handleAnnotation(parseInt(inp.dataset.idx)); });
+      });
+    }
+
+    // ============ ANNOTATION HANDLING ============
+    async function handleAnnotation(noteIdx) {
+      const input = document.getElementById('ann-input-' + noteIdx);
+      const btn = document.getElementById('ann-btn-' + noteIdx);
+      if (!input || !btn) return;
+
+      const text = input.value.trim();
+      if (!text) { toast('Type something first', 'error'); return; }
+
+      let name = getDisplayName();
+      if (!name) {
+        name = prompt('Your name (shown with annotation):') || 'Anonymous';
+        setDisplayName(name);
+      }
+
+      btn.disabled = true; btn.textContent = 'Posting...';
+
+      try {
+        // Store annotation under: rooms/{roomId}/annotations/{noteIdx}/{sessionId}
+        const path = 'rooms/' + ROOM_ID + '/annotations/' + noteIdx + '/' + SESSION_ID;
+        await fbPut(path, { name, text, createdAt: Date.now(), sessionId: SESSION_ID });
+        input.value = '';
+        toast('Annotation posted!', 'success');
+
+        // Refresh just this note's annotations
+        const allAnns = await fbGet('rooms/' + ROOM_ID + '/annotations');
+        const raw = (allAnns || {})[String(noteIdx)] || {};
+        const refreshed = typeof raw === 'object' ? Object.values(raw) : [];
+        refreshAnnotations(noteIdx, refreshed);
+      } catch (err) {
+        toast('Post failed: ' + err.message.slice(0, 60), 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Post';
+      }
+    }
+
+    // ============ REFRESH ONE NOTE'S ANNOTATIONS ============
+    function refreshAnnotations(noteIdx, anns) {
+      const card = document.getElementById('note-' + noteIdx);
+      if (!card) return;
+      const annSection = card.querySelector('.annotations');
+      if (!annSection) return;
+
+      anns.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+      const heading = annSection.querySelector('.ann-heading');
+      if (heading) heading.textContent = anns.length + ' annotation' + (anns.length !== 1 ? 's' : '');
+
+      annSection.querySelectorAll('.ann-item').forEach(i => i.remove());
+
+      const form = annSection.querySelector('.ann-form');
+      anns.forEach(a => {
+        const d = document.createElement('div');
+        d.className = 'ann-item';
+        d.innerHTML =
+          '<div class="ann-avatar" style="background:' + stringToColor(a.name) + '">' + avatarInitials(a.name) + '</div>' +
+          '<div class="ann-content">' +
+          '<div class="ann-name">' + escHtml(a.name) + '</div>' +
+          '<div class="ann-text">' + escHtml(a.text) + '</div>' +
+          '<div class="ann-time">' + timeAgo(a.createdAt || 0) + '</div>' +
+          '</div>';
+        annSection.insertBefore(d, form);
+      });
+    }
+
+    // ============ LIVE POLLING (annotations every 8s) ============
+    function startPolling(noteCount) {
+      setInterval(async () => {
+        try {
+          const allAnns = await fbGet('rooms/' + ROOM_ID + '/annotations');
+          if (!allAnns) return;
+          for (let idx = 0; idx < noteCount; idx++) {
+            const raw = (allAnns)[String(idx)] || {};
+            const anns = typeof raw === 'object' ? Object.values(raw) : [];
+            refreshAnnotations(idx, anns);
+          }
+        } catch (_) { }
+      }, 8000);
+    }
+
+    // ============ MAIN ============
+    async function main() {
+      if (!ROOM_ID || !DB_HOST) {
+        document.getElementById('app').innerHTML =
+          '<div class="error-state"><p>Invalid room link</p><span>This URL is missing the room ID or database host.</span></div>';
+        return;
+      }
+
+      try {
+        const room = await fbGet('rooms/' + ROOM_ID);
+
+        if (!room || !room.meta) throw new Error('Room not found or has been deleted.');
+
+        const annotations = await fbGet('rooms/' + ROOM_ID + '/annotations');
+        renderRoom(room, annotations || {});
+
+        const notes = toArray(room.notes);
+        startPolling(notes.length);
+        document.title = 'NotePilot \u2014 ' + (room.meta.videoTitle || 'Study Room');
+
+      } catch (err) {
+        console.error('Room load error:', err);
+        document.getElementById('app').innerHTML =
+          '<div class="error-state"><p>Could not load room</p><span>' + escHtml(err.message) + '</span></div>';
+      }
+    }
+
+    main();
+  </script>
 </body>
+
 </html>
