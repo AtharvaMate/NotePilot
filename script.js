@@ -1,5 +1,7 @@
 // ============ CONFIG ============
-const GROQ_KEY = process.env.GROQ_API_KEY;
+const GROQ_KEY = (typeof NOTEPILOT_CONFIG !== 'undefined' && NOTEPILOT_CONFIG.GROQ_API_KEY)
+    ? NOTEPILOT_CONFIG.GROQ_API_KEY
+    : '';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL_CHAT = 'llama-3.3-70b-versatile';
 const MODEL_VISION = 'meta-llama/llama-4-scout-17b-16e-instruct';
@@ -302,7 +304,7 @@ async function mathExprToImage(formula, isDisplay, pdfFontSizePt = 9) {
 
     // Scale font: PDF pts → screen px (96 dpi) × a readability boost
     const RENDER_SCALE = 3;                     // html2canvas device scale
-    const FONT_PX = Math.round(pdfFontSizePt * (96 / 72) * 1.35);
+    const FONT_PX = Math.round(pdfFontSizePt * (96 / 72));
     const PX_TO_MM = 25.4 / 96;
 
     // ── 1. Build a white, off-screen wrapper ──
@@ -315,8 +317,8 @@ async function mathExprToImage(formula, isDisplay, pdfFontSizePt = 9) {
         'color:#111119',
         `font-size:${FONT_PX}px`,
         `display:${isDisplay ? 'block' : 'inline-block'}`,
-        `padding:${isDisplay ? '6px 10px' : '2px 5px'}`,
-        'line-height:1.5',
+        `padding:${isDisplay ? '2px 4px' : '1px 2px'}`,
+        'line-height:1.2',
         'white-space:nowrap',
         'z-index:-1',
     ].join(';');
@@ -449,7 +451,7 @@ async function addTextWithNativeMathPdf(pdf, fullText, x, y, maxW, fontSize, r, 
             let content = line;
             const bm = line.match(/^[-•*]\s+(.+)$/);
             const nm = line.match(/^(\d+)\.\s+(.+)$/);
-            if (bm) { indent = 4; prefix = '•'; content = bm[1]; }
+            if (bm) { indent = 4; prefix = '-'; content = bm[1]; }
             else if (nm) { indent = 4; prefix = nm[1] + '.'; content = nm[2]; }
 
             const indentX = x + indent;
@@ -465,12 +467,60 @@ async function addTextWithNativeMathPdf(pdf, fullText, x, y, maxW, fontSize, r, 
                 y += tl.length * LH;
             } else {
                 // ── Mixed text + inline math ──
-                if (prefix) { pdf.setTextColor(r, g, b); pdf.text(prefix, x, y); }
+                // Two-pass approach:
+                //   Pass 1 — pre-render every math segment to get real pixel
+                //             dimensions, then compute the tallest image on
+                //             this logical source line.
+                //   Pass 2 — lay out words and images with a per-line baseline
+                //             that is pushed down enough so no image overflows
+                //             into the line above or below.
+
                 const segs = tokeniseLine(content);
 
-                // State: tracks current x position within the line
+                // Pass 1 — render all math images
+                const preImages = new Map();
+                for (const seg of segs) {
+                    if (seg.type === 'math' && !preImages.has(seg.content)) {
+                        preImages.set(seg.content, await mathExprToImage(seg.content, false, fontSize));
+                    }
+                }
+
+                // How tall is the tallest image on this source line?
+                const ABOVE = 0.78;  // fraction of image height above baseline
+                let srcMaxH = 0;
+                for (const im of preImages.values()) {
+                    if (im && im.heightMm > srcMaxH) srcMaxH = im.heightMm;
+                }
+                // Extra space that needs to sit above the baseline on any line
+                // that contains one of these images.
+                const extraAbove = Math.max(0, srcMaxH * ABOVE - LH * 0.8);
+                // Extra space below the baseline for the same images.
+                const extraBelow = Math.max(0, srcMaxH * (1 - ABOVE) - LH * 0.2);
+
+                // The effective line-height for lines that contain math images:
+                const mathLH = LH + extraAbove + extraBelow;
+
+                // A helper that advances to a new wrapped line, reserving
+                // space above for any image that starts on the new line.
+                const newlineWithSpace = () => {
+                    const advance = mathLH;
+                    st.ly += advance;
+                    ensurePage(advance + extraAbove);
+                    st.cx = indentX;
+                };
+
+                // Before starting the first line, push the baseline down if
+                // the image extends above normal text height.
+                if (extraAbove > 0) {
+                    y += extraAbove;
+                    ensurePage(extraAbove);
+                }
+
+                if (prefix) { pdf.setTextColor(r, g, b); pdf.text(prefix, x, y); }
+
                 const st = { cx: indentX, ly: y };
 
+                // Pass 2 — lay out
                 for (const seg of segs) {
                     if (seg.type === 'text') {
                         const words = seg.content.replace(/\*\*(.*?)\*\*/g, '$1').split(/(\s+)/);
@@ -478,29 +528,24 @@ async function addTextWithNativeMathPdf(pdf, fullText, x, y, maxW, fontSize, r, 
                             if (!w) continue;
                             if (/^\s+$/.test(w)) { st.cx += spW(); continue; }
                             const ww = pdf.getTextWidth(w);
-                            if (st.cx + ww > x + maxW) {
-                                st.ly += LH; ensurePage(LH); st.cx = indentX;
-                            }
+                            if (st.cx + ww > x + maxW) { newlineWithSpace(); }
                             pdf.setTextColor(r, g, b);
                             pdf.text(w, st.cx, st.ly);
                             st.cx += ww;
                         }
                     } else {
-                        // Inline math → image
-                        const im = await mathExprToImage(seg.content, false, fontSize);
+                        const im = preImages.get(seg.content);
                         if (im) {
-                            if (st.cx + im.widthMm > x + maxW) {
-                                st.ly += LH; ensurePage(LH + im.heightMm); st.cx = indentX;
-                            }
-                            // Align image baseline with text baseline (~75% above baseline)
-                            const iy = st.ly - im.heightMm * 0.78;
+                            if (st.cx + im.widthMm > x + maxW) { newlineWithSpace(); }
+                            ensurePage(im.heightMm);
+                            const iy = st.ly - im.heightMm * ABOVE;
                             pdf.addImage(im.dataUrl, 'PNG', st.cx, iy, im.widthMm, im.heightMm);
-                            st.cx += im.widthMm + 0.4;
+                            st.cx += im.widthMm + 0.8;
                         } else {
-                            // MathJax unavailable — plain fallback
+                            // KaTeX unavailable — plain fallback
                             const plain = seg.content;
                             const pw2 = pdf.getTextWidth(plain);
-                            if (st.cx + pw2 > x + maxW) { st.ly += LH; st.cx = indentX; }
+                            if (st.cx + pw2 > x + maxW) { newlineWithSpace(); }
                             pdf.setTextColor(100, 80, 200);
                             pdf.text(plain, st.cx, st.ly);
                             pdf.setTextColor(r, g, b);
@@ -508,7 +553,8 @@ async function addTextWithNativeMathPdf(pdf, fullText, x, y, maxW, fontSize, r, 
                         }
                     }
                 }
-                y = st.ly + LH;
+                // Advance y past the last line, including any below-baseline image overhang.
+                y = st.ly + LH + extraBelow;
             }
         }
         if (pi < paragraphs.length - 1) y += PG;
@@ -893,7 +939,7 @@ async function makePDF() {
             pdf.roundedRect(M, y - 4, CW, 9, 2, 2, 'D');
             pdf.setFontSize(8);
             pdf.setTextColor(...ACCENT);
-            pdf.textWithLink(`▶  youtube.com/watch?v=${videoId}`, M + 4, y + 0.5, {
+            pdf.textWithLink(`> youtube.com/watch?v=${videoId}`, M + 4, y + 0.5, {
                 url: `https://www.youtube.com/watch?v=${videoId}`
             });
             pdf.setTextColor(...MUTED);
@@ -905,7 +951,7 @@ async function makePDF() {
         // ══════════════════════════════════════════
         //  HELPER: draw a section heading bar
         // ══════════════════════════════════════════
-        const drawSection = (label, iconChar = '◈') => {
+        const drawSection = (label, iconChar = '>') => {
             if (y > ph - 35) { pdf.addPage(); y = M; }
             y += 3;
             pdf.setFillColor(240, 240, 252);
@@ -924,7 +970,7 @@ async function makePDF() {
         //  VIDEO SUMMARY
         // ══════════════════════════════════════════
         if (summary) {
-            drawSection('Video Summary', '◉');
+            drawSection('Video Summary', '>');
             y += 2;
             y = await addTextWithNativeMathPdf(pdf, summary, M + 2, y, CW - 4, 9, ...TEXT2, ph, M);
             y += 5;
@@ -938,43 +984,29 @@ async function makePDF() {
         //  CAPTURED NOTES
         // ══════════════════════════════════════════
         if (timestamps.length) {
-            drawSection('Captured Notes', '◎');
+            drawSection('Captured Notes', '>');
             y += 2;
 
             for (let i = 0; i < timestamps.length; i++) {
                 const ts = timestamps[i];
                 if (y > ph - 90) { pdf.addPage(); y = M; }
 
-                // ── Note card background ──
+                const cardStartPage = pdf.internal.getCurrentPageInfo().pageNumber;
                 const cardStartY = y - 1;
-                const estimateH = Math.min(
-                    (ts.snapshot ? 60 : 0) +
-                    (ts.note ? Math.ceil(ts.note.length / 80) * 5 + 8 : 8) +
-                    (ts.ocrText ? Math.ceil(ts.ocrText.length / 80) * 4 + 14 : 0) +
-                    (ts.aiExplanation ? Math.ceil(ts.aiExplanation.length / 80) * 4 + 14 : 0) +
-                    14,
-                    ph - y - M
-                );
-
-                pdf.setFillColor(...CARD_BG);
-                pdf.roundedRect(M, cardStartY, CW, estimateH, 2.5, 2.5, 'F');
-                pdf.setDrawColor(...BORDER);
-                pdf.setLineWidth(0.2);
-                pdf.roundedRect(M, cardStartY, CW, estimateH, 2.5, 2.5, 'D');
-
-                // Left accent stripe
-                pdf.setFillColor(...ACCENT);
-                pdf.roundedRect(M, cardStartY, 3, estimateH, 1.5, 1.5, 'F');
-
                 y += 3;
 
-                // ── Timestamp pill ──
-                pdf.setFillColor(...ACCENT);
-                pdf.roundedRect(M + 6, y - 3.2, 36, 6.5, 1.5, 1.5, 'F');
-                pdf.setFont(undefined, 'bold');
+                // ── Timestamp pill — centered, auto-width ──
                 pdf.setFontSize(7.5);
+                const pillLabel = `> ${ts.timestamp}  -  Note #${i + 1}`;
+                const pillTextW = pdf.getTextWidth(pillLabel);
+                const pillW = pillTextW + 10;
+                const pillX = M + 6;
+                pdf.setFillColor(...ACCENT);
+                pdf.roundedRect(pillX, y - 3.2, pillW, 6.5, 1.5, 1.5, 'F');
+                pdf.setFont(undefined, 'bold');
                 pdf.setTextColor(255, 255, 255);
-                pdf.textWithLink(`▶  ${ts.timestamp}   —   Note #${i + 1}`, M + 8, y + 0.2, {
+                pdf.textWithLink(pillLabel, pillX + pillW / 2, y + 0.2, {
+                    align: 'center',
                     url: `https://www.youtube.com/watch?v=${videoId}&t=${ts.videoTime}s`
                 });
                 pdf.setFont(undefined, 'normal');
@@ -986,7 +1018,6 @@ async function makePDF() {
                         const imgW = Math.min(CW * 0.72, 116);
                         const imgH = imgW * (9 / 16);
                         if (y + imgH > ph - M - 10) { pdf.addPage(); y = M; }
-                        // Subtle shadow / border
                         pdf.setFillColor(200, 200, 220);
                         pdf.roundedRect(M + 7, y + 0.5, imgW, imgH, 2, 2, 'F');
                         pdf.addImage(ts.snapshot, 'JPEG', M + 7, y, imgW, imgH, '', 'FAST');
@@ -1008,17 +1039,14 @@ async function makePDF() {
 
                 // ── OCR extracted text ──
                 if (ts.ocrText) {
-                    // Header
                     pdf.setFillColor(230, 228, 252);
                     pdf.roundedRect(M + 7, y - 2, CW - 14, 7, 1.2, 1.2, 'F');
                     pdf.setFontSize(7);
                     pdf.setFont(undefined, 'bold');
                     pdf.setTextColor(...ACCENT);
-                    pdf.text('● EXTRACTED TEXT', M + 10, y + 2);
+                    pdf.text('EXTRACTED TEXT', M + 10, y + 2);
                     pdf.setFont(undefined, 'normal');
                     y += 8;
-
-                    // Content
                     pdf.setFontSize(7.5);
                     pdf.setTextColor(...TEXT2);
                     y = await addTextWithNativeMathPdf(pdf, ts.ocrText, M + 9, y, CW - 18, 7.5, ...TEXT2, ph, M);
@@ -1032,17 +1060,36 @@ async function makePDF() {
                     pdf.setFontSize(7);
                     pdf.setFont(undefined, 'bold');
                     pdf.setTextColor(...ACCENT2);
-                    pdf.text('✦ AI EXPLANATION', M + 10, y + 2);
+                    pdf.text('AI EXPLANATION', M + 10, y + 2);
                     pdf.setFont(undefined, 'normal');
                     y += 8;
-
                     pdf.setFontSize(7.5);
                     pdf.setTextColor(...TEXT2);
                     y = await addTextWithNativeMathPdf(pdf, ts.aiExplanation, M + 9, y, CW - 18, 7.5, ...TEXT2, ph, M);
                     y += 3;
                 }
 
-                y += 8; // card bottom padding
+                y += 8;
+
+                // ── Card border + stripe drawn AFTER content (no fill = no overlap) ──
+                const cardEndPage = pdf.internal.getCurrentPageInfo().pageNumber;
+                const cardEndY = y;
+                for (let pg = cardStartPage; pg <= cardEndPage; pg++) {
+                    pdf.setPage(pg);
+                    const segTop = (pg === cardStartPage) ? cardStartY : M - 1;
+                    const segBottom = (pg === cardEndPage) ? cardEndY : ph - M;
+                    const segH = segBottom - segTop;
+                    if (segH <= 0) continue;
+                    pdf.setDrawColor(...BORDER);
+                    pdf.setLineWidth(0.3);
+                    pdf.roundedRect(M, segTop, CW, segH, 2.5, 2.5, 'D');
+                    pdf.setFillColor(...ACCENT);
+                    pdf.rect(M, segTop, 3, segH, 'F');
+                }
+                pdf.setPage(cardEndPage);
+                pdf.setTextColor(...TEXT2);
+                pdf.setFont(undefined, 'normal');
+                y += 4;
             }
         }
 
@@ -1052,7 +1099,7 @@ async function makePDF() {
         const selectedQA = aiResponses.filter(qa => qa.includedInPdf !== false);
         if (selectedQA.length) {
             if (y > ph - 40) { pdf.addPage(); y = M; }
-            drawSection('AI Q&A', '◆');
+            drawSection('AI Q&A', '>');
             y += 2;
 
             for (let i = 0; i < selectedQA.length; i++) {
