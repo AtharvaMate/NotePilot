@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotePilot</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="jspdf.min.js"></script>
+    <script src="katex.min.js"></script>
+    <script src="html2canvas.min.js"></script>
+</head>
+
+<body>
+    <div id="toasts"></div>
+
+    <!-- Header -->
+    <header class="hdr">
+        <div class="hdr-left">
+            <div class="logo">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                    <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                </svg>
+            </div>
+            <span class="brand">NOTEPILOT</span>
+        </div>
+        <div id="status" class="status offline">
+            <span class="status-dot"></span>
+            <span id="status-text">No video</span>
+        </div>
+    </header>
+
+    <!-- Video Bar -->
+    <div id="video-bar" class="video-bar" style="display:none">
+        <div class="vid-info">
+            <span class="vid-label">NOW WATCHING</span>
+            <span id="vid-title" class="vid-title">—</span>
+        </div>
+        <button id="capture-btn" class="btn btn-cap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+            </svg>
+            Capture
+        </button>
+    </div>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+        <button class="tab active" data-panel="notes">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+            </svg>
+            Notes
+            <span id="notes-count" class="badge" style="display:none">0</span>
+        </button>
+        <button class="tab" data-panel="chat">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            AI Chat
+        </button>
+    </nav>
+
+    <!-- Notes Panel -->
+    <main id="panel-notes" class="panel active">
+        <div class="scroll" id="notes-list">
+            <div class="empty" id="empty-notes">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"
+                    opacity=".2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                </svg>
+                <p>No captures yet</p>
+                <span>Open a YouTube video and click&nbsp;<strong>Capture</strong></span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Chat Panel -->
+    <main id="panel-chat" class="panel">
+        <div class="scroll chat-scroll" id="chat-messages">
+            <div class="msg bot">
+                <div class="bubble">👋 Load a YouTube video, then ask me anything about it!</div>
+            </div>
+        </div>
+        <div class="chat-bar">
+            <input type="text" id="chat-input" class="input" placeholder="Ask about the video...">
+            <button id="send-btn" class="btn btn-send" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m22 2-7 20-4-9-9-4Z" />
+                    <path d="M22 2 11 13" />
+                </svg>
+            </button>
+        </div>
+    </main>
+
+    <!-- Export Footer -->
+    <footer class="export-ft">
+        <input type="text" id="pdf-title" class="input input-sm" placeholder="PDF title...">
+        <button id="export-btn" class="btn btn-export" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Export PDF
+        </button>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
