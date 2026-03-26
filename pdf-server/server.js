@@ -350,4 +350,8 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
+<<<<<<< HEAD
 app.listen(PORT, () => console.log(`NotePilot PDF server running on port ${PORT}`));  
+=======
+app.listen(PORT, () => console.log(`NotePilot PDF server running on port ${PORT}`));
+>>>>>>> 3e150766ae5b206eec0d25ccf416f06c2d51e8da
