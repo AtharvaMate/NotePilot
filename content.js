@@ -238,10 +238,23 @@
         const vId = urlParams.get('v') || '';
         if (!vId) return;
 
-        // Get auth token from localStorage
-        const token = localStorage.getItem('np_token') || '';
+        // Get auth token from chrome.storage.local (shared with extension popup)
+        let token = '';
+        try {
+            const result = await chrome.storage.local.get('np_token');
+            token = result.np_token || '';
+        } catch (e) {
+            console.warn('[NotePilot] Could not read auth token:', e.message);
+        }
+
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        if (!token) {
+            console.warn('[NotePilot] No auth token — open NotePilot popup and log in first');
+            showPlayerToast('⚠ Log in to NotePilot first');
+            return;
+        }
 
         const titleEl = document.querySelector('h1.ytd-watch-metadata yt-formatted-string')
             || document.querySelector('#title h1 yt-formatted-string')
@@ -251,7 +264,7 @@
         try {
             // Load existing data from backend
             const loadRes = await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`, { headers });
-            const existing = await loadRes.json();
+            const existing = (loadRes.ok) ? await loadRes.json() : null;
             const timestamps = existing?.timestamps || [];
             const aiResponses = existing?.aiResponses || [];
 
@@ -261,7 +274,7 @@
             });
 
             // Save back to backend
-            await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`, {
+            const saveRes = await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`, {
                 method: 'PUT',
                 headers,
                 body: JSON.stringify({
@@ -271,8 +284,14 @@
                     pdfTitleVal: ytTitle
                 })
             });
+
+            if (!saveRes.ok) {
+                console.error('[NotePilot] Save failed:', saveRes.status);
+                showPlayerToast('⚠ Save failed — check login');
+            }
         } catch (err) {
             console.error('[NotePilot] saveCapture error:', err);
+            showPlayerToast('⚠ Save error');
         }
     }
 

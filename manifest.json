@@ -5,7 +5,8 @@
     "description": "AI-Powered YouTube Study Notes — Capture frames, take notes, ask AI, export PDF, share study rooms.",
     "permissions": [
         "activeTab",
-        "scripting"
+        "scripting",
+        "storage"
     ],
     "host_permissions": [
         "https://www.youtube.com/*",

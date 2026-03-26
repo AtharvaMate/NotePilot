@@ -58,6 +58,9 @@ let timestamps = [];
 let aiResponses = [];
 let sharedRoomId = '';   // persisted per video — reused on every share
 
+// ============ HELPERS ============
+function escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>'); }
+
 // ============ DOM ============
 const statusEl = document.getElementById('status');
 const statusText = document.getElementById('status-text');
@@ -144,6 +147,10 @@ async function handleAuthSubmit() {
         authToken = data.token;
         currentUser = data.user;
         localStorage.setItem('np_token', authToken);
+        // Sync token to chrome.storage so content scripts on youtube.com can access it
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ np_token: authToken });
+        }
         hideAuthOverlay();
         showUserInfo();
         detectVideo();
@@ -173,6 +180,10 @@ logoutBtn.addEventListener('click', () => {
     authToken = '';
     currentUser = null;
     localStorage.removeItem('np_token');
+    // Clear from chrome.storage too
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.remove('np_token');
+    }
     userInfoEl.style.display = 'none';
     logoutBtn.style.display = 'none';
     showAuthOverlay();
@@ -1551,7 +1562,7 @@ async function generateFlashcards() {
         try {
             const transcript = await fetchTranscript();
             if (transcript) context = `VIDEO: ${videoTitle}\n\nTRANSCRIPT:\n${transcript.slice(0, 6000)}`;
-        } catch (_) {}
+        } catch (_) { }
 
         if (!context) {
             context = buildFlashcardContext();
@@ -1655,7 +1666,7 @@ if (generateFlashcardsBtn) {
 // Update flashcard button state whenever data changes
 const _origRenderAllNotes = typeof renderAllNotes === 'function' ? renderAllNotes : null;
 if (_origRenderAllNotes) {
-    const _patchedRenderAllNotes = function() {
+    const _patchedRenderAllNotes = function () {
         _origRenderAllNotes.apply(this, arguments);
         updateFlashcardButtonState();
     };

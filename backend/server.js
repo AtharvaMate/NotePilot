@@ -545,8 +545,23 @@ app.post('/api/ai/flashcards', async (req, res) => {
 // =============================================================================
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/notepilot')
-    .then(() => {
+    .then(async () => {
         console.log('✓ MongoDB connected');
+
+        // Drop old videoId_1 unique index if it exists (replaced by compound {videoId, userId})
+        try {
+            const collection = mongoose.connection.collection('videos');
+            const indexes = await collection.indexes();
+            const oldIndex = indexes.find(i => i.name === 'videoId_1' && i.unique);
+            if (oldIndex) {
+                await collection.dropIndex('videoId_1');
+                console.log('✓ Dropped old videoId_1 unique index');
+            }
+        } catch (err) {
+            // Index might not exist — that's fine
+            if (!err.message.includes('not found')) console.warn('Index cleanup note:', err.message);
+        }
+
         app.listen(PORT, () => console.log(`✓ NotePilot API running on http://localhost:${PORT}`));
     })
     .catch(err => {
