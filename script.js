@@ -1,41 +1,42 @@
 // ============ CONFIG ============
-const GROQ_KEY = (typeof NOTEPILOT_CONFIG !== 'undefined' && NOTEPILOT_CONFIG.GROQ_API_KEY)
-    ? NOTEPILOT_CONFIG.GROQ_API_KEY
-    : '';
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL_CHAT = 'llama-3.3-70b-versatile';
-const MODEL_VISION = 'meta-llama/llama-4-scout-17b-16e-instruct';
+const BACKEND_URL = (typeof NOTEPILOT_CONFIG !== 'undefined' && NOTEPILOT_CONFIG.BACKEND_URL)
+    ? NOTEPILOT_CONFIG.BACKEND_URL.replace(/\/$/, '') : 'http://localhost:3001';
+const ROOM_VIEWER_URL = (typeof NOTEPILOT_CONFIG !== 'undefined' && NOTEPILOT_CONFIG.ROOM_VIEWER_URL)
+    ? NOTEPILOT_CONFIG.ROOM_VIEWER_URL.replace(/\/$/, '') : '';
 
-// ============ AI HELPER (Groq) ============
+// ============ AI HELPER (via backend proxy) ============
 async function callAI(messages, opts = {}) {
-    if (!GROQ_KEY) throw new Error('API key not configured — check config.js');
-    const model = opts.model || MODEL_CHAT;
-    const res = await fetch(GROQ_URL, {
+    const res = await fetch(`${BACKEND_URL}/api/ai/chat`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_KEY}`
-        },
-        body: JSON.stringify({
-            model,
-            messages,
-            temperature: opts.temperature ?? 0.7,
-            max_tokens: opts.max_tokens ?? 1024
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, temperature: opts.temperature ?? 0.7, max_tokens: opts.max_tokens ?? 1024 })
     });
-
     if (!res.ok) {
         const errBody = await res.text();
-        console.error(`Groq [${model}] error ${res.status}:`, errBody);
         let detail = '';
         try { detail = JSON.parse(errBody)?.error?.message || errBody; } catch (_) { detail = errBody; }
         throw new Error(`${res.status} — ${detail.slice(0, 200)}`);
     }
-
     const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Empty response from Groq');
-    return text;
+    if (!data.text) throw new Error('Empty response from AI');
+    return data.text;
+}
+
+async function callAIVision(messages, opts = {}) {
+    const res = await fetch(`${BACKEND_URL}/api/ai/vision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, temperature: opts.temperature ?? 0.1, max_tokens: opts.max_tokens ?? 1024 })
+    });
+    if (!res.ok) {
+        const errBody = await res.text();
+        let detail = '';
+        try { detail = JSON.parse(errBody)?.error?.message || errBody; } catch (_) { detail = errBody; }
+        throw new Error(`${res.status} — ${detail.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    if (!data.text) throw new Error('Empty response from AI');
+    return data.text;
 }
 
 // ============ STATE ============
@@ -43,6 +44,7 @@ let videoId = '';
 let videoTitle = '';
 let timestamps = [];
 let aiResponses = [];
+let sharedRoomId = '';   // persisted per video — reused on every share
 
 // ============ DOM ============
 const statusEl = document.getElementById('status');
@@ -64,6 +66,7 @@ const toasts = document.getElementById('toasts');
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+    setupShareModal();
     detectVideo();
 }
 
@@ -71,28 +74,18 @@ async function detectVideo() {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab || !tab.url || !tab.url.includes('youtube.com/watch')) {
-            setStatus(false, 'Open a YouTube video');
-            return;
+            setStatus(false, 'Open a YouTube video'); return;
         }
-
         const info = await chrome.tabs.sendMessage(tab.id, { action: 'getVideoInfo' });
-
         if (info && (info.hasVideo || info.videoId)) {
             videoId = info.videoId || '';
             videoTitle = info.title || '';
             setStatus(true, 'Video detected');
             videoBar.style.display = 'flex';
             vidTitleEl.textContent = videoTitle || 'YouTube Video';
-            // Don't pre-fill — let user type custom title; falls back to video title on export
-
             await loadData();
-        } else {
-            setStatus(false, 'No video found');
-        }
-    } catch (err) {
-        console.error('Detection error:', err);
-        setStatus(false, 'Refresh YouTube tab');
-    }
+        } else { setStatus(false, 'No video found'); }
+    } catch (err) { setStatus(false, 'Refresh YouTube tab'); }
 }
 
 function setStatus(online, text) {
@@ -100,19 +93,18 @@ function setStatus(online, text) {
     statusText.textContent = text;
 }
 
-// ============ PERSISTENCE (chrome.storage.local) ============
+// ============ PERSISTENCE (Backend API) ============
 async function saveData() {
     if (!videoId) return;
     try {
-        await chrome.storage.local.set({
-            [`np_${videoId}`]: {
-                timestamps,
-                aiResponses,
-                videoTitle,
-                videoId,
+        await fetch(`${BACKEND_URL}/api/videos/${videoId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                videoTitle, timestamps, aiResponses,
                 pdfTitleVal: pdfTitle.value,
-                savedAt: Date.now()
-            }
+                sharedRoomId
+            })
         });
     } catch (e) { console.error('Save error:', e); }
 }
@@ -120,25 +112,24 @@ async function saveData() {
 async function loadData() {
     if (!videoId) return;
     try {
-        const key = `np_${videoId}`;
-        const result = await chrome.storage.local.get(key);
-        const data = result[key];
+        const res = await fetch(`${BACKEND_URL}/api/videos/${videoId}`);
+        const data = await res.json();
         if (data) {
             timestamps = data.timestamps || [];
             aiResponses = data.aiResponses || [];
+            sharedRoomId = data.sharedRoomId || '';
             if (data.videoTitle) videoTitle = data.videoTitle;
             if (data.pdfTitleVal) pdfTitle.value = data.pdfTitleVal;
             vidTitleEl.textContent = videoTitle || 'YouTube Video';
 
             renderNotes();
             updateExport();
+            updateShareLiveIndicator();
 
-            // Restore AI chat messages
             aiResponses.forEach((qa, idx) => {
                 addMsg('user', qa.question);
                 addMsg('bot', qa.answer, false, idx);
             });
-
             if (timestamps.length || aiResponses.length) {
                 showToast(`Restored ${timestamps.length} notes`, 'info');
             }
@@ -162,48 +153,21 @@ captureBtn.addEventListener('click', captureSnapshot);
 async function captureSnapshot() {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab || !tab.url?.includes('youtube.com/watch')) {
-            showToast('Open a YouTube video first', 'error');
-            return;
-        }
-
+        if (!tab || !tab.url?.includes('youtube.com/watch')) { showToast('Open a YouTube video first', 'error'); return; }
         const info = await chrome.tabs.sendMessage(tab.id, { action: 'getVideoInfo' });
-        if (!info || !info.hasVideo) {
-            showToast('Video not playing yet', 'error');
-            return;
-        }
-
-        const screenshot = await chrome.tabs.captureVisibleTab(null, {
-            format: 'jpeg', quality: 92
-        });
-
+        if (!info || !info.hasVideo) { showToast('Video not playing yet', 'error'); return; }
+        const screenshot = await chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 92 });
         const frame = await cropToVideo(screenshot, info.rect, info.devicePixelRatio);
-
         const t = Math.floor(info.currentTime);
         const label = `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}`;
-
-        if (info.title && !videoTitle) {
-            videoTitle = info.title;
-            vidTitleEl.textContent = videoTitle;
-        }
-
-        timestamps.push({
-            id: Date.now().toString(),
-            timestamp: label,
-            videoTime: t,
-            note: '',
-            snapshot: frame,
-            ocrText: ''
-        });
-
+        if (info.title && !videoTitle) { videoTitle = info.title; vidTitleEl.textContent = videoTitle; }
+        timestamps.push({ id: Date.now().toString(), timestamp: label, videoTime: t, note: '', snapshot: frame, ocrText: '' });
         renderNotes();
         updateExport();
         await saveData();
+        pushNoteToRoom(timestamps[timestamps.length - 1]);  // live-sync if room active
         showToast(`Captured at ${label}`, 'success');
-    } catch (err) {
-        console.error('Capture error:', err);
-        showToast('Capture failed — try refreshing YouTube', 'error');
-    }
+    } catch (err) { showToast('Capture failed — try refreshing YouTube', 'error'); }
 }
 
 function cropToVideo(dataUrl, rect, dpr) {
@@ -211,10 +175,8 @@ function cropToVideo(dataUrl, rect, dpr) {
         const img = new Image();
         img.onload = () => {
             const c = document.createElement('canvas');
-            const sx = Math.round(rect.x * dpr);
-            const sy = Math.round(rect.y * dpr);
-            const sw = Math.round(rect.width * dpr);
-            const sh = Math.round(rect.height * dpr);
+            const sx = Math.round(rect.x * dpr), sy = Math.round(rect.y * dpr);
+            const sw = Math.round(rect.width * dpr), sh = Math.round(rect.height * dpr);
             c.width = sw; c.height = sh;
             c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
             resolve(c.toDataURL('image/jpeg', 0.88));
@@ -224,170 +186,79 @@ function cropToVideo(dataUrl, rect, dpr) {
     });
 }
 
-// ============ KATEX MATH RENDERING ============
-// Format plain text with basic markdown: headings, bold, diagram brackets
+// ============ KATEX + MARKDOWN RENDERING ============
 function formatMarkdown(html) {
-    // ## Heading → bold heading line
-    html = html.replace(/^(#{1,3})\s+(.+)$/gm, (m, hashes, content) => {
-        const size = hashes.length === 1 ? '1em' : hashes.length === 2 ? '.92em' : '.85em';
-        return `<strong style="display:block;font-size:${size};margin:.3em 0 .15em">${content}</strong>`;
+    html = html.replace(/^(#{1,3})\s+(.+)$/gm, (m, h, content) => {
+        const sz = h.length === 1 ? '1em' : h.length === 2 ? '.92em' : '.85em';
+        return `<strong style="display:block;font-size:${sz};margin:.3em 0 .15em">${content}</strong>`;
     });
-    // **bold**
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // [Diagram: ...] → styled tag
-    html = html.replace(/\[Diagram:\s*(.+?)\]/gi,
-        '<span class="diagram-tag">[Diagram: $1]</span>');
-    // Convert newlines to breaks for proper paragraph spacing
+    html = html.replace(/\[Diagram:\s*(.+?)\]/gi, '<span class="diagram-tag">[Diagram: $1]</span>');
     html = html.replace(/\n/g, '<br>');
     return html;
 }
 
 function renderWithMath(text) {
     if (typeof katex === 'undefined') return formatMarkdown(escapeHtml(text));
-
     const parts = [];
     let lastIndex = 0;
-
-    // Match $$...$$ (display) and $...$ (inline) patterns
     const regex = /\$\$([\s\S]*?)\$\$|\$([^\$\n]+?)\$/g;
     let match;
-
     while ((match = regex.exec(text)) !== null) {
-        // Add formatted text before this match
-        if (match.index > lastIndex) {
-            parts.push(formatMarkdown(escapeHtml(text.slice(lastIndex, match.index))));
-        }
-
-        const displayMath = match[1]; // from $$...$$
-        const inlineMath = match[2];  // from $...$
-
+        if (match.index > lastIndex) parts.push(formatMarkdown(escapeHtml(text.slice(lastIndex, match.index))));
+        const displayMath = match[1], inlineMath = match[2];
         try {
             if (displayMath !== undefined) {
-                parts.push(katex.renderToString(displayMath.trim(), {
-                    displayMode: true, throwOnError: false
-                }));
+                parts.push(katex.renderToString(displayMath.trim(), { displayMode: true, throwOnError: false }));
             } else {
-                parts.push(katex.renderToString(inlineMath.trim(), {
-                    displayMode: false, throwOnError: false
-                }));
+                parts.push(katex.renderToString(inlineMath.trim(), { displayMode: false, throwOnError: false }));
             }
-        } catch (e) {
-            parts.push(escapeHtml(match[0]));
-        }
-
+        } catch (e) { parts.push(escapeHtml(match[0])); }
         lastIndex = match.index + match[0].length;
     }
-
-    // Add remaining text
-    if (lastIndex < text.length) {
-        parts.push(formatMarkdown(escapeHtml(text.slice(lastIndex))));
-    }
-
+    if (lastIndex < text.length) parts.push(formatMarkdown(escapeHtml(text.slice(lastIndex))));
     return parts.join('');
 }
 
-function hasMath(text) {
-    return /\$[\s\S]*?\$/.test(text);
-}
-
-// Strip $ delimiters for plain text contexts (PDF fallback)
 function stripMathDelimiters(text) {
     if (!text) return '';
     return text.replace(/\$\$([\s\S]*?)\$\$/g, '$1').replace(/\$([^\$\n]+?)\$/g, '$1');
 }
 
-// ============ MATH → IMAGE via KaTeX + html2canvas ============
-// Renders a LaTeX formula with KaTeX into a hidden DOM node,
-// then screenshots it with html2canvas at 3× for crisp PDF output.
+// ============ MATH → IMAGE (PDF) ============
 async function mathExprToImage(formula, isDisplay, pdfFontSizePt = 9) {
     if (typeof katex === 'undefined' || typeof html2canvas === 'undefined') return null;
-
-    // Scale font: PDF pts → screen px (96 dpi) × a readability boost
-    const RENDER_SCALE = 3;                     // html2canvas device scale
+    const RENDER_SCALE = 3;
     const FONT_PX = Math.round(pdfFontSizePt * (96 / 72));
     const PX_TO_MM = 25.4 / 96;
-
-    // ── 1. Build a white, off-screen wrapper ──
     const wrapper = document.createElement('div');
     wrapper.style.cssText = [
-        'position:fixed',
-        'left:-99999px',
-        'top:-99999px',
-        'background:#ffffff',
-        'color:#111119',
-        `font-size:${FONT_PX}px`,
-        `display:${isDisplay ? 'block' : 'inline-block'}`,
-        `padding:${isDisplay ? '2px 4px' : '1px 2px'}`,
-        'line-height:1.2',
-        'white-space:nowrap',
-        'z-index:-1',
+        'position:fixed', 'left:-99999px', 'top:-99999px', 'background:#ffffff', 'color:#111119',
+        `font-size:${FONT_PX}px`, `display:${isDisplay ? 'block' : 'inline-block'}`,
+        `padding:${isDisplay ? '2px 4px' : '1px 2px'}`, 'line-height:1.2', 'white-space:nowrap', 'z-index:-1'
     ].join(';');
-
-    // ── 2. Render KaTeX (HTML output for best fidelity) ──
     try {
-        katex.render(formula, wrapper, {
-            displayMode: isDisplay,
-            throwOnError: false,
-            output: 'html',
-            trust: false,
-        });
-    } catch (e) {
-        console.warn('[NotePilot] KaTeX render error:', e);
-        return null;
-    }
-
-    // Force every KaTeX element to use dark ink (popup dark theme fights us otherwise)
-    wrapper.querySelectorAll('*').forEach(el => {
-        el.style.color = '#111119';
-        el.style.borderColor = '#111119';
-    });
-
+        katex.render(formula, wrapper, { displayMode: isDisplay, throwOnError: false, output: 'html', trust: false });
+    } catch (e) { return null; }
+    wrapper.querySelectorAll('*').forEach(el => { el.style.color = '#111119'; el.style.borderColor = '#111119'; });
     document.body.appendChild(wrapper);
-
     try {
-        // ── 3. Capture with html2canvas ──
-        const canvas = await html2canvas(wrapper, {
-            backgroundColor: '#ffffff',
-            scale: RENDER_SCALE,
-            logging: false,
-            useCORS: false,
-            allowTaint: false,
-            removeContainer: false,   // we remove it ourselves
-        });
-
+        const canvas = await html2canvas(wrapper, { backgroundColor: '#ffffff', scale: RENDER_SCALE, logging: false, useCORS: false, allowTaint: false, removeContainer: false });
         document.body.removeChild(wrapper);
-
-        // ── 4. Convert canvas pixels → mm ──
-        // canvas.width / RENDER_SCALE = logical px; logical px × PX_TO_MM = mm
-        const widthMm = (canvas.width / RENDER_SCALE) * PX_TO_MM;
-        const heightMm = (canvas.height / RENDER_SCALE) * PX_TO_MM;
-
-        return {
-            dataUrl: canvas.toDataURL('image/png'),
-            widthMm,
-            heightMm,
-        };
+        return { dataUrl: canvas.toDataURL('image/png'), widthMm: (canvas.width / RENDER_SCALE) * PX_TO_MM, heightMm: (canvas.height / RENDER_SCALE) * PX_TO_MM };
     } catch (e) {
-        // Clean up even on error
         if (document.body.contains(wrapper)) document.body.removeChild(wrapper);
-        console.warn('[NotePilot] html2canvas error:', e);
         return null;
     }
 }
 
-// ============ RICH TEXT + MATH-AS-IMAGES → PDF ============
-// Renders paragraphs, headings, bullets, inline $math$, and display $$math$$ blocks.
-// Math expressions are rasterised via MathJax SVG → canvas → PNG image in the PDF.
 async function addTextWithNativeMathPdf(pdf, fullText, x, y, maxW, fontSize, r, g, b, ph, m) {
     pdf.setFontSize(fontSize);
     pdf.setTextColor(r, g, b);
-    const LH = fontSize * 0.43;  // line-height (mm)
-    const PG = LH * 0.6;         // paragraph gap
-
+    const LH = fontSize * 0.43;
+    const PG = LH * 0.6;
     const ensurePage = need => { if (y + need > ph - m) { pdf.addPage(); y = m; } };
     const spW = () => pdf.getTextWidth(' ');
-
-    // Break one line of text into { type:'text'|'math', content } segments
     const tokeniseLine = line => {
         const segs = [];
         const re = /\$([^\$\n]+?)\$/g;
@@ -400,127 +271,56 @@ async function addTextWithNativeMathPdf(pdf, fullText, x, y, maxW, fontSize, r, 
         if (last < line.length) segs.push({ type: 'text', content: line.slice(last) });
         return segs;
     };
-
     const paragraphs = fullText.split(/\n\n+/);
-
     for (let pi = 0; pi < paragraphs.length; pi++) {
         for (const rawLine of paragraphs[pi].split('\n')) {
             const line = rawLine.trim();
             if (!line) continue;
-
-            // ── Display math block  $$...$$ ──
             const disp = line.match(/^\$\$([\s\S]*?)\$\$$/);
             if (disp) {
                 const im = await mathExprToImage(disp[1].trim(), true, fontSize * 1.15);
                 ensurePage((im?.heightMm ?? LH) + 5);
-                if (im) {
-                    const ix = x + (maxW - im.widthMm) / 2;
-                    pdf.addImage(im.dataUrl, 'PNG', ix, y + 0.5, im.widthMm, im.heightMm);
-                    y += im.heightMm + 3;
-                } else {
-                    const clean = disp[1].trim();
-                    pdf.setTextColor(80, 80, 200);
-                    const tl = pdf.splitTextToSize(clean, maxW);
-                    pdf.text(tl, x + maxW / 2, y, { align: 'center' });
-                    pdf.setTextColor(r, g, b);
-                    y += tl.length * LH + 2;
-                }
+                if (im) { pdf.addImage(im.dataUrl, 'PNG', x + (maxW - im.widthMm) / 2, y + 0.5, im.widthMm, im.heightMm); y += im.heightMm + 3; }
+                else { pdf.setTextColor(80, 80, 200); const tl = pdf.splitTextToSize(disp[1].trim(), maxW); pdf.text(tl, x + maxW / 2, y, { align: 'center' }); pdf.setTextColor(r, g, b); y += tl.length * LH + 2; }
                 continue;
             }
-
-            // ── Heading  # / ## / ### ──
             const hm = line.match(/^(#{1,3})\s+(.+)$/);
             if (hm) {
                 const hSz = fontSize + (4 - hm[1].length) * 1.5;
                 ensurePage(hSz * 0.45 + 2);
-                pdf.setFontSize(hSz);
-                pdf.setFont(undefined, 'bold');
-                pdf.setTextColor(r, g, b);
+                pdf.setFontSize(hSz); pdf.setFont(undefined, 'bold'); pdf.setTextColor(r, g, b);
                 const ht = hm[2].replace(/\*\*(.*?)\*\*/g, '$1').replace(/\$([^$]*)\$/g, '$1');
                 const hl = pdf.splitTextToSize(ht, maxW);
-                pdf.text(hl, x, y);
-                y += hl.length * (hSz * 0.43) + 1;
-                pdf.setFont(undefined, 'normal');
-                pdf.setFontSize(fontSize);
-                pdf.setTextColor(r, g, b);
+                pdf.text(hl, x, y); y += hl.length * (hSz * 0.43) + 1;
+                pdf.setFont(undefined, 'normal'); pdf.setFontSize(fontSize); pdf.setTextColor(r, g, b);
                 continue;
             }
-
-            // ── Bullet / numbered list ──
-            let indent = 0, prefix = '';
-            let content = line;
-            const bm = line.match(/^[-•*]\s+(.+)$/);
-            const nm = line.match(/^(\d+)\.\s+(.+)$/);
+            let indent = 0, prefix = '', content = line;
+            const bm = line.match(/^[-•*]\s+(.+)$/), nm = line.match(/^(\d+)\.\s+(.+)$/);
             if (bm) { indent = 4; prefix = '-'; content = bm[1]; }
             else if (nm) { indent = 4; prefix = nm[1] + '.'; content = nm[2]; }
-
             const indentX = x + indent;
             const hasMath = /\$/.test(content);
             ensurePage(LH + 2);
-
             if (!hasMath) {
-                // ── Pure text line ──
                 const clean = content.replace(/\*\*(.*?)\*\*/g, '$1').replace(/`(.*?)`/g, '$1');
                 if (prefix) { pdf.setTextColor(r, g, b); pdf.text(prefix, x, y); }
                 const tl = pdf.splitTextToSize(clean, maxW - indent);
-                pdf.text(tl, indentX, y);
-                y += tl.length * LH;
+                pdf.text(tl, indentX, y); y += tl.length * LH;
             } else {
-                // ── Mixed text + inline math ──
-                // Two-pass approach:
-                //   Pass 1 — pre-render every math segment to get real pixel
-                //             dimensions, then compute the tallest image on
-                //             this logical source line.
-                //   Pass 2 — lay out words and images with a per-line baseline
-                //             that is pushed down enough so no image overflows
-                //             into the line above or below.
-
                 const segs = tokeniseLine(content);
-
-                // Pass 1 — render all math images
                 const preImages = new Map();
-                for (const seg of segs) {
-                    if (seg.type === 'math' && !preImages.has(seg.content)) {
-                        preImages.set(seg.content, await mathExprToImage(seg.content, false, fontSize));
-                    }
-                }
-
-                // How tall is the tallest image on this source line?
-                const ABOVE = 0.78;  // fraction of image height above baseline
+                for (const seg of segs) { if (seg.type === 'math' && !preImages.has(seg.content)) preImages.set(seg.content, await mathExprToImage(seg.content, false, fontSize)); }
+                const ABOVE = 0.78;
                 let srcMaxH = 0;
-                for (const im of preImages.values()) {
-                    if (im && im.heightMm > srcMaxH) srcMaxH = im.heightMm;
-                }
-                // Extra space that needs to sit above the baseline on any line
-                // that contains one of these images.
+                for (const im of preImages.values()) { if (im && im.heightMm > srcMaxH) srcMaxH = im.heightMm; }
                 const extraAbove = Math.max(0, srcMaxH * ABOVE - LH * 0.8);
-                // Extra space below the baseline for the same images.
                 const extraBelow = Math.max(0, srcMaxH * (1 - ABOVE) - LH * 0.2);
-
-                // The effective line-height for lines that contain math images:
                 const mathLH = LH + extraAbove + extraBelow;
-
-                // A helper that advances to a new wrapped line, reserving
-                // space above for any image that starts on the new line.
-                const newlineWithSpace = () => {
-                    const advance = mathLH;
-                    st.ly += advance;
-                    ensurePage(advance + extraAbove);
-                    st.cx = indentX;
-                };
-
-                // Before starting the first line, push the baseline down if
-                // the image extends above normal text height.
-                if (extraAbove > 0) {
-                    y += extraAbove;
-                    ensurePage(extraAbove);
-                }
-
+                const newlineWithSpace = () => { st.ly += mathLH; ensurePage(mathLH + extraAbove); st.cx = indentX; };
+                if (extraAbove > 0) { y += extraAbove; ensurePage(extraAbove); }
                 if (prefix) { pdf.setTextColor(r, g, b); pdf.text(prefix, x, y); }
-
                 const st = { cx: indentX, ly: y };
-
-                // Pass 2 — lay out
                 for (const seg of segs) {
                     if (seg.type === 'text') {
                         const words = seg.content.replace(/\*\*(.*?)\*\*/g, '$1').split(/(\s+)/);
@@ -528,38 +328,28 @@ async function addTextWithNativeMathPdf(pdf, fullText, x, y, maxW, fontSize, r, 
                             if (!w) continue;
                             if (/^\s+$/.test(w)) { st.cx += spW(); continue; }
                             const ww = pdf.getTextWidth(w);
-                            if (st.cx + ww > x + maxW) { newlineWithSpace(); }
-                            pdf.setTextColor(r, g, b);
-                            pdf.text(w, st.cx, st.ly);
-                            st.cx += ww;
+                            if (st.cx + ww > x + maxW) newlineWithSpace();
+                            pdf.setTextColor(r, g, b); pdf.text(w, st.cx, st.ly); st.cx += ww;
                         }
                     } else {
                         const im = preImages.get(seg.content);
                         if (im) {
-                            if (st.cx + im.widthMm > x + maxW) { newlineWithSpace(); }
+                            if (st.cx + im.widthMm > x + maxW) newlineWithSpace();
                             ensurePage(im.heightMm);
-                            const iy = st.ly - im.heightMm * ABOVE;
-                            pdf.addImage(im.dataUrl, 'PNG', st.cx, iy, im.widthMm, im.heightMm);
+                            pdf.addImage(im.dataUrl, 'PNG', st.cx, st.ly - im.heightMm * ABOVE, im.widthMm, im.heightMm);
                             st.cx += im.widthMm + 0.8;
                         } else {
-                            // KaTeX unavailable — plain fallback
-                            const plain = seg.content;
-                            const pw2 = pdf.getTextWidth(plain);
-                            if (st.cx + pw2 > x + maxW) { newlineWithSpace(); }
-                            pdf.setTextColor(100, 80, 200);
-                            pdf.text(plain, st.cx, st.ly);
-                            pdf.setTextColor(r, g, b);
-                            st.cx += pw2;
+                            const plain = seg.content, pw2 = pdf.getTextWidth(plain);
+                            if (st.cx + pw2 > x + maxW) newlineWithSpace();
+                            pdf.setTextColor(100, 80, 200); pdf.text(plain, st.cx, st.ly); pdf.setTextColor(r, g, b); st.cx += pw2;
                         }
                     }
                 }
-                // Advance y past the last line, including any below-baseline image overhang.
                 y = st.ly + LH + extraBelow;
             }
         }
         if (pi < paragraphs.length - 1) y += PG;
     }
-
     return y;
 }
 
@@ -574,7 +364,6 @@ function renderNotes() {
     emptyNotes.style.display = 'none';
     notesCount.style.display = 'inline-flex';
     notesCount.textContent = timestamps.length;
-
     notesList.querySelectorAll('.cap-item').forEach(i => i.remove());
 
     timestamps.forEach((ts, i) => {
@@ -597,139 +386,133 @@ function renderNotes() {
             ? '<button class="btn-explain" data-id="' + ts.id + '"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Explain</button>'
             : '';
 
+        const hasSnap = ts.snapshot && ts.snapshot.startsWith('data:');
+
+        const snapHtml = hasSnap
+            ? `<div class="cap-img"><img src="${ts.snapshot}" alt="Frame at ${ts.timestamp}"></div>`
+            : `<div class="cap-img-deleted">
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
+                   <span>Snapshot deleted</span>
+               </div>`;
+
+        const delSnapBtn = hasSnap
+            ? `<button class="btn-del-snap" data-id="${ts.id}" title="Delete snapshot to save space">
+                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                       <polyline points="3 6 5 6 21 6"/>
+                       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                       <path d="M10 11v6"/><path d="M14 11v6"/>
+                   </svg>
+                   Del snap
+               </button>`
+            : '';
+
         el.innerHTML = `
             <div class="cap-top">
                 <a class="cap-link" data-time="${ts.videoTime}">
-                    <span class="cap-badge">${ts.timestamp}</span>
-                    Note #${i + 1}
+                    <span class="cap-badge">${ts.timestamp}</span>Note #${i + 1}
                 </a>
-                <button class="cap-del" data-id="${ts.id}" title="Delete">
+                <button class="cap-del" data-id="${ts.id}" title="Delete entire note">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                 </button>
             </div>
-            <div class="cap-img"><img src="${ts.snapshot}" alt="Frame at ${ts.timestamp}"></div>
+            ${snapHtml}
             <div class="cap-actions">
                 <button class="btn-ocr" data-id="${ts.id}">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     Extract Text
                 </button>
                 ${explainBtnHtml}
+                ${delSnapBtn}
             </div>
-            ${ocrHtml}
-            ${explainHtml}
+            ${ocrHtml}${explainHtml}
             <textarea class="cap-note" placeholder="Add notes..." data-id="${ts.id}">${ts.note}</textarea>
         `;
         notesList.appendChild(el);
     });
 
-    // Event: click timestamp link
     notesList.querySelectorAll('.cap-link').forEach(link => {
-        link.addEventListener('click', () => {
-            const vt = link.dataset.time;
-            if (videoId) window.open(`https://www.youtube.com/watch?v=${videoId}&t=${vt}s`, '_blank');
-        });
+        link.addEventListener('click', () => { if (videoId) window.open(`https://www.youtube.com/watch?v=${videoId}&t=${link.dataset.time}s`, '_blank'); });
     });
-
-    // Event: delete
     notesList.querySelectorAll('.cap-del').forEach(btn => {
         btn.addEventListener('click', async () => {
             timestamps = timestamps.filter(t => t.id !== btn.dataset.id);
+            renderNotes(); updateExport(); await saveData(); showToast('Deleted', 'info');
+        });
+    });
+    notesList.querySelectorAll('.cap-note').forEach(ta => {
+        ta.addEventListener('input', () => { const ts = timestamps.find(t => t.id === ta.dataset.id); if (ts) ts.note = ta.value; });
+        ta.addEventListener('blur', () => {
+            saveData();
+            const ts = timestamps.find(t => t.id === ta.dataset.id);
+            if (ts) syncNoteTextToRoom(ts);
+        });
+    });
+    notesList.querySelectorAll('.btn-ocr').forEach(btn => btn.addEventListener('click', () => extractText(btn.dataset.id, btn)));
+    notesList.querySelectorAll('.btn-explain').forEach(btn => btn.addEventListener('click', () => explainContent(btn.dataset.id, btn)));
+
+    // Delete snapshot only — keeps note, OCR text, explanation intact
+    notesList.querySelectorAll('.btn-del-snap').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const ts = timestamps.find(t => t.id === btn.dataset.id);
+            if (!ts) return;
+            ts.snapshot = '';   // clear the base64 image
             renderNotes();
             updateExport();
             await saveData();
-            showToast('Deleted', 'info');
+            showToast('Snapshot deleted', 'info');
         });
-    });
-
-    // Event: note editing
-    notesList.querySelectorAll('.cap-note').forEach(ta => {
-        ta.addEventListener('input', () => {
-            const ts = timestamps.find(t => t.id === ta.dataset.id);
-            if (ts) ts.note = ta.value;
-        });
-        ta.addEventListener('blur', () => saveData());
-    });
-
-    // Event: OCR button
-    notesList.querySelectorAll('.btn-ocr').forEach(btn => {
-        btn.addEventListener('click', () => extractText(btn.dataset.id, btn));
-    });
-
-    // Event: Explain button
-    notesList.querySelectorAll('.btn-explain').forEach(btn => {
-        btn.addEventListener('click', () => explainContent(btn.dataset.id, btn));
     });
 }
 
-// ============ OCR — Extract Text + Diagram Descriptions ============
+// ============ OCR ============
 async function extractText(tsId, btnEl) {
     const ts = timestamps.find(t => t.id === tsId);
     if (!ts || !ts.snapshot) return;
-
-    btnEl.disabled = true;
-    btnEl.classList.add('loading');
+    btnEl.disabled = true; btnEl.classList.add('loading');
     btnEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Extracting...`;
-
-    const resetBtn = () => {
-        btnEl.disabled = false;
-        btnEl.classList.remove('loading');
-        btnEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Extract Text`;
-    };
+    const resetBtn = () => { btnEl.disabled = false; btnEl.classList.remove('loading'); btnEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Extract Text`; };
     try {
-        const text = await callAI(
+        const text = await callAIVision(
             [{
-                role: 'user',
-                content: [
-                    {
-                        type: 'text',
-                        text: `Extract ALL visible text from this image exactly as it appears. Do NOT explain, summarize, or solve anything. Just provide the raw text. Format with clear paragraph breaks. For multiple choice options or lists, place each item on a new line. For mathematical expressions or equations, use simple plain text formatting (e.g. use "3/4" instead of "\\frac{3}{4}", use "√3" instead of "\\sqrt{3}", "csc 10°" instead of "\\csc 10^\\circ"). Do NOT use LaTeX notation. If there are diagrams, charts, figures, or illustrations, describe them in [square brackets] — include labels, arrows, axes, relationships, and key elements. If there is no readable text or visual content, reply with "(no content found)". Again: DO NOT SOLVE OR EXPLAIN.`
-                    },
+                role: 'user', content: [
+                    { type: 'text', text: `Extract ALL visible text from this image exactly as it appears. Do NOT explain, summarize, or solve anything. Just provide the raw text. Format with clear paragraph breaks. For multiple choice options or lists, place each item on a new line. For mathematical expressions, use simple plain text (e.g. "3/4" not LaTeX). Describe diagrams/charts in [square brackets]. Reply "(no content found)" if empty.` },
                     { type: 'image_url', image_url: { url: ts.snapshot } }
                 ]
             }],
-            { model: MODEL_VISION, temperature: 0.1 }
+            { temperature: 0.1 }
         );
-
         ts.ocrText = text.trim();
-        await saveData();
-        renderNotes();
+        await saveData(); renderNotes();
+        syncNoteTextToRoom(ts);
         showToast('Text extracted!', 'success');
     } catch (err) {
-        console.error('OCR error:', err);
-        showToast(`OCR failed: ${err.message.slice(0, 80)}`, 'error');
-        resetBtn();
+        showToast(`OCR failed: ${err.message.slice(0, 80)}`, 'error'); resetBtn();
     }
 }
 
-// ============ EXPLAIN CONTENT ============
+// ============ EXPLAIN ============
 async function explainContent(tsId, btnEl) {
     const ts = timestamps.find(t => t.id === tsId);
     if (!ts || !ts.ocrText) { showToast('Extract text first', 'error'); return; }
-
-    btnEl.disabled = true;
-    btnEl.classList.add('loading');
+    btnEl.disabled = true; btnEl.classList.add('loading');
     const origHtml = btnEl.innerHTML;
     btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Explaining...';
-
     try {
         const explanation = await callAI([
-            { role: 'system', content: 'You are a study assistant. Explain the given educational content clearly. Use LaTeX with $ for inline math and $$ for display math. Be educational and concise.' },
+            { role: 'system', content: 'You are a study assistant. Explain educational content clearly. Use LaTeX with $ for inline math and $$ for display math. Be educational and concise.' },
             { role: 'user', content: 'Here is text extracted from a video slide:\n\n' + ts.ocrText + '\n\nExplain this content clearly for a student. Break down complex concepts and explain any formulas.' }
         ]);
         ts.aiExplanation = explanation.trim();
-        await saveData();
-        renderNotes();
+        await saveData(); renderNotes();
+        syncNoteTextToRoom(ts);
         showToast('Explanation generated!', 'success');
     } catch (err) {
-        console.error('Explain error:', err);
         showToast('Explanation failed: ' + err.message.slice(0, 80), 'error');
-        btnEl.disabled = false;
-        btnEl.classList.remove('loading');
-        btnEl.innerHTML = origHtml;
+        btnEl.disabled = false; btnEl.classList.remove('loading'); btnEl.innerHTML = origHtml;
     }
 }
 
-// ============ AI CHAT (Groq) ============
+// ============ AI CHAT ============
 chatInput.addEventListener('input', () => { sendBtn.disabled = !chatInput.value.trim(); });
 chatInput.addEventListener('keypress', e => { if (e.key === 'Enter' && !sendBtn.disabled) sendMsg(); });
 sendBtn.addEventListener('click', sendMsg);
@@ -737,21 +520,16 @@ sendBtn.addEventListener('click', sendMsg);
 async function sendMsg() {
     const q = chatInput.value.trim();
     if (!q) return;
-
-    addMsg('user', q);
-    chatInput.value = '';
-    sendBtn.disabled = true;
+    addMsg('user', q); chatInput.value = ''; sendBtn.disabled = true;
     addMsg('bot', 'Thinking...', true);
-
     try {
         let sysMsg = 'You are NotePilot AI — a helpful, clear, and concise study assistant.';
         if (videoTitle) {
             sysMsg += ` The student is watching a video titled "${videoTitle}".`;
-            sysMsg += ' Use this context to make your answers relevant, but do NOT explicitly mention, quote, or reference the video title in your response. Never say "as discussed in the video" or similar phrases. Just answer the question directly.';
+            sysMsg += ' Use this context to make your answers relevant, but do NOT explicitly mention, quote, or reference the video title in your response. Just answer the question directly.';
         }
-        sysMsg += ' When your answer involves math, use LaTeX notation with $ delimiters for inline math (e.g. $F = ma$) and $$ for display math (e.g. $$E = mc^2$$).';
+        sysMsg += ' When your answer involves math, use LaTeX notation with $ delimiters for inline math and $$ for display math.';
 
-        // Build multi-turn conversation for better context
         const messages = [{ role: 'system', content: sysMsg }];
         const recentQA = aiResponses.slice(-4);
         for (const qa of recentQA) {
@@ -761,32 +539,22 @@ async function sendMsg() {
         messages.push({ role: 'user', content: buildPrompt(q) });
 
         const answer = await callAI(messages);
-
         removeLast();
         const qaIdx = aiResponses.length;
         addMsg('bot', answer, false, qaIdx);
         aiResponses.push({ question: q, answer, time: new Date().toLocaleTimeString(), includedInPdf: true });
-        updateExport();
-        await saveData();
-
+        updateExport(); await saveData();
     } catch (err) {
-        console.error('AI error:', err);
-        removeLast();
-        addMsg('bot', `API Error: ${err.message}`);
+        removeLast(); addMsg('bot', `API Error: ${err.message}`);
         showToast('AI request failed', 'error');
     }
 }
 
 function buildPrompt(question) {
     let p = '';
-    if (videoTitle) {
-        p += `VIDEO CONTEXT:\n`;
-        p += `Title: "${videoTitle}"\n`;
-        if (videoId) p += `URL: youtube.com/watch?v=${videoId}\n`;
-        p += '\n';
-    }
+    if (videoTitle) { p += `VIDEO CONTEXT:\nTitle: "${videoTitle}"\n`; if (videoId) p += `URL: youtube.com/watch?v=${videoId}\n`; p += '\n'; }
     if (timestamps.length) {
-        p += 'STUDENT\'S CAPTURED NOTES FROM THIS VIDEO:\n';
+        p += "STUDENT'S CAPTURED NOTES FROM THIS VIDEO:\n";
         timestamps.forEach((ts, i) => {
             p += `[${ts.timestamp}] Note #${i + 1}: ${ts.note || '(no note)'}`;
             if (ts.ocrText) p += `\n   Slide/screen text: ${ts.ocrText.slice(0, 300)}`;
@@ -794,420 +562,215 @@ function buildPrompt(question) {
         });
         p += '\n';
     }
-    p += `STUDENT'S QUESTION: ${question}\n\n`;
-    p += 'Answer clearly and educationally. Use the notes and context to give a relevant answer. Use LaTeX math notation ($...$) for equations. Do NOT reference the video title in your answer.';
+    p += `STUDENT'S QUESTION: ${question}\n\nAnswer clearly and educationally. Use LaTeX math notation ($...$). Do NOT reference the video title.`;
     return p;
 }
 
 function addMsg(role, text, loading = false, qaIndex = -1) {
     const d = document.createElement('div');
     d.className = `msg ${role}${loading ? ' loading' : ''}`;
-
-    // Render math for bot messages (not loading state)
     const content = (role === 'bot' && !loading) ? renderWithMath(text) : escapeHtml(text);
-
     let toggleHtml = '';
     if (role === 'bot' && !loading && qaIndex >= 0) {
         const checked = aiResponses[qaIndex]?.includedInPdf !== false ? 'checked' : '';
-        toggleHtml = '<label class="qa-pdf-toggle" title="Include in PDF export">' +
-            '<input type="checkbox" ' + checked + ' data-qa-index="' + qaIndex + '">' +
-            '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
-            ' PDF</label>';
+        toggleHtml = '<label class="qa-pdf-toggle" title="Include in PDF export"><input type="checkbox" ' + checked + ' data-qa-index="' + qaIndex + '"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> PDF</label>';
     }
-
     d.innerHTML = '<div class="bubble">' + content + toggleHtml + '</div>';
-
-    // Wire up PDF toggle
     const toggle = d.querySelector('.qa-pdf-toggle input');
     if (toggle) {
         toggle.addEventListener('change', () => {
             const idx = parseInt(toggle.dataset.qaIndex);
-            if (aiResponses[idx]) {
-                aiResponses[idx].includedInPdf = toggle.checked;
-                saveData();
-            }
+            if (aiResponses[idx]) { aiResponses[idx].includedInPdf = toggle.checked; saveData(); }
         });
     }
-
     chatMessages.appendChild(d);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-function removeLast() {
-    const msgs = chatMessages.querySelectorAll('.msg');
-    if (msgs.length) msgs[msgs.length - 1].remove();
-}
+function removeLast() { const msgs = chatMessages.querySelectorAll('.msg'); if (msgs.length) msgs[msgs.length - 1].remove(); }
+function escapeHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-function escapeHtml(s) {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-// ============ PDF EXPORT ============
+// ============ EXPORT ============
 exportBtn.addEventListener('click', makePDF);
 
 function updateExport() {
     exportBtn.disabled = !timestamps.length && !aiResponses.length;
+    const shareBtn = document.getElementById('share-btn');
+    if (shareBtn) shareBtn.disabled = !timestamps.length;
 }
 
+// ============ PDF EXPORT ============
 async function makePDF() {
-    if (!timestamps.length && !aiResponses.length) {
-        showToast('Nothing to export', 'error'); return;
-    }
-
+    if (!timestamps.length && !aiResponses.length) { showToast('Nothing to export', 'error'); return; }
     showToast('Generating summary & PDF...', 'loading');
-
     let summary = '';
     try { summary = await generateSummary(); }
-    catch (e) { console.warn('AI summary failed:', e.message); summary = buildLocalSummary(); }
+    catch (e) { summary = buildLocalSummary(); }
 
     try {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
-        const pw = pdf.internal.pageSize.getWidth();   // 210
-        const ph = pdf.internal.pageSize.getHeight();  // 297
-        const M = 18;   // margin
-        const CW = pw - M * 2; // content width
-        const ACCENT = [99, 102, 241];
-        const ACCENT2 = [168, 85, 247];
-        const TEXT = [30, 30, 52];
-        const TEXT2 = [80, 80, 110];
-        const MUTED = [130, 130, 160];
-        const CARD_BG = [245, 245, 252];
-        const BORDER = [220, 220, 238];
-
+        const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+        const M = 18, CW = pw - M * 2;
+        const ACCENT = [99, 102, 241], ACCENT2 = [168, 85, 247];
+        const TEXT = [30, 30, 52], TEXT2 = [80, 80, 110], MUTED = [130, 130, 160];
+        const CARD_BG = [245, 245, 252], BORDER = [220, 220, 238];
         let y = 0;
         const title = pdfTitle.value.trim() || videoTitle || 'Study Notes';
 
-        // ══════════════════════════════════════════
-        //  COVER HEADER
-        // ══════════════════════════════════════════
-        // Dark gradient-like background (two tone)
-        pdf.setFillColor(17, 17, 30);
-        pdf.rect(0, 0, pw, 52, 'F');
-        pdf.setFillColor(13, 13, 22);
-        pdf.rect(0, 36, pw, 16, 'F');
-
-        // Purple accent bar at very top
-        pdf.setFillColor(...ACCENT);
-        pdf.rect(0, 0, pw, 2, 'F');
-
-        // Logo mark — small gradient square
-        pdf.setFillColor(...ACCENT);
-        pdf.roundedRect(M, 8, 8, 8, 1.5, 1.5, 'F');
-        pdf.setFillColor(...ACCENT2);
-        pdf.roundedRect(M + 1.5, 9.5, 5, 5, 1, 1, 'F');
-
-        // Brand name
-        pdf.setFontSize(7);
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(129, 140, 248);
+        pdf.setFillColor(17, 17, 30); pdf.rect(0, 0, pw, 52, 'F');
+        pdf.setFillColor(13, 13, 22); pdf.rect(0, 36, pw, 16, 'F');
+        pdf.setFillColor(...ACCENT); pdf.rect(0, 0, pw, 2, 'F');
+        pdf.setFillColor(...ACCENT); pdf.roundedRect(M, 8, 8, 8, 1.5, 1.5, 'F');
+        pdf.setFillColor(...ACCENT2); pdf.roundedRect(M + 1.5, 9.5, 5, 5, 1, 1, 'F');
+        pdf.setFontSize(7); pdf.setFont(undefined, 'bold'); pdf.setTextColor(129, 140, 248);
         pdf.text('NOTEPILOT', M + 11, 13.5);
-
-        // Main title
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(238, 238, 245);
-        pdf.setFontSize(17);
+        pdf.setFont(undefined, 'bold'); pdf.setTextColor(238, 238, 245); pdf.setFontSize(17);
         const titleLines = pdf.splitTextToSize(title, pw - M * 2 - 20);
         let ty = 24;
         for (const tl of titleLines) { pdf.text(tl, pw / 2, ty, { align: 'center' }); ty += 8; }
-
-        // Subtitle row
-        pdf.setFont(undefined, 'normal');
-        pdf.setFontSize(8);
-        pdf.setTextColor(129, 140, 248);
+        pdf.setFont(undefined, 'normal'); pdf.setFontSize(8); pdf.setTextColor(129, 140, 248);
         const userGaveTitle = pdfTitle.value.trim() && pdfTitle.value.trim() !== videoTitle;
-        const sub = (userGaveTitle && videoTitle)
-            ? `${videoTitle}   ·   ${new Date().toLocaleDateString()}`
-            : new Date().toLocaleDateString();
-        const subLines = pdf.splitTextToSize(sub, pw - 40);
-        pdf.text(subLines, pw / 2, Math.max(ty + 1, 44), { align: 'center' });
-
-        // Bottom accent line
-        pdf.setFillColor(...ACCENT);
-        pdf.rect(0, 50, pw, 2, 'F');
-        pdf.setFillColor(...ACCENT2);
-        pdf.rect(pw / 2, 50, pw / 2, 2, 'F');
-
+        const sub = (userGaveTitle && videoTitle) ? `${videoTitle}   ·   ${new Date().toLocaleDateString()}` : new Date().toLocaleDateString();
+        pdf.text(pdf.splitTextToSize(sub, pw - 40), pw / 2, Math.max(ty + 1, 44), { align: 'center' });
+        pdf.setFillColor(...ACCENT); pdf.rect(0, 50, pw, 2, 'F');
+        pdf.setFillColor(...ACCENT2); pdf.rect(pw / 2, 50, pw / 2, 2, 'F');
         y = 62;
 
-        // ── Video link pill ──
         if (videoId) {
-            pdf.setFillColor(...CARD_BG);
-            pdf.roundedRect(M, y - 4, CW, 9, 2, 2, 'F');
-            pdf.setDrawColor(...BORDER);
-            pdf.setLineWidth(0.25);
-            pdf.roundedRect(M, y - 4, CW, 9, 2, 2, 'D');
-            pdf.setFontSize(8);
-            pdf.setTextColor(...ACCENT);
-            pdf.textWithLink(`> youtube.com/watch?v=${videoId}`, M + 4, y + 0.5, {
-                url: `https://www.youtube.com/watch?v=${videoId}`
-            });
+            pdf.setFillColor(...CARD_BG); pdf.roundedRect(M, y - 4, CW, 9, 2, 2, 'F');
+            pdf.setDrawColor(...BORDER); pdf.setLineWidth(0.25); pdf.roundedRect(M, y - 4, CW, 9, 2, 2, 'D');
+            pdf.setFontSize(8); pdf.setTextColor(...ACCENT);
+            pdf.textWithLink(`> youtube.com/watch?v=${videoId}`, M + 4, y + 0.5, { url: `https://www.youtube.com/watch?v=${videoId}` });
             pdf.setTextColor(...MUTED);
-            const stats = `${timestamps.length} capture${timestamps.length !== 1 ? 's' : ''}  ·  ${aiResponses.length} Q&A`;
-            pdf.text(stats, pw - M - 4, y + 0.5, { align: 'right' });
+            pdf.text(`${timestamps.length} capture${timestamps.length !== 1 ? 's' : ''}  ·  ${aiResponses.length} Q&A`, pw - M - 4, y + 0.5, { align: 'right' });
             y += 13;
         }
 
-        // ══════════════════════════════════════════
-        //  HELPER: draw a section heading bar
-        // ══════════════════════════════════════════
-        const drawSection = (label, iconChar = '>') => {
+        const drawSection = (label) => {
             if (y > ph - 35) { pdf.addPage(); y = M; }
             y += 3;
-            pdf.setFillColor(240, 240, 252);
-            pdf.roundedRect(M, y - 4.5, CW, 10, 2, 2, 'F');
-            pdf.setFillColor(...ACCENT);
-            pdf.roundedRect(M, y - 4.5, 3.5, 10, 1, 1, 'F');
-            pdf.setFont(undefined, 'bold');
-            pdf.setFontSize(10.5);
-            pdf.setTextColor(...ACCENT);
-            pdf.text(`${iconChar}  ${label}`, M + 8, y + 1.5);
-            pdf.setFont(undefined, 'normal');
-            y += 10;
+            pdf.setFillColor(240, 240, 252); pdf.roundedRect(M, y - 4.5, CW, 10, 2, 2, 'F');
+            pdf.setFillColor(...ACCENT); pdf.roundedRect(M, y - 4.5, 3.5, 10, 1, 1, 'F');
+            pdf.setFont(undefined, 'bold'); pdf.setFontSize(10.5); pdf.setTextColor(...ACCENT);
+            pdf.text(`>  ${label}`, M + 8, y + 1.5);
+            pdf.setFont(undefined, 'normal'); y += 10;
         };
 
-        // ══════════════════════════════════════════
-        //  VIDEO SUMMARY
-        // ══════════════════════════════════════════
         if (summary) {
-            drawSection('Video Summary', '>');
-            y += 2;
+            drawSection('Video Summary'); y += 2;
             y = await addTextWithNativeMathPdf(pdf, summary, M + 2, y, CW - 4, 9, ...TEXT2, ph, M);
-            y += 5;
-            pdf.setDrawColor(...BORDER);
-            pdf.setLineWidth(0.25);
-            pdf.line(M, y, pw - M, y);
-            y += 6;
+            y += 5; pdf.setDrawColor(...BORDER); pdf.setLineWidth(0.25); pdf.line(M, y, pw - M, y); y += 6;
         }
 
-        // ══════════════════════════════════════════
-        //  CAPTURED NOTES
-        // ══════════════════════════════════════════
         if (timestamps.length) {
-            drawSection('Captured Notes', '>');
-            y += 2;
-
+            drawSection('Captured Notes'); y += 2;
             for (let i = 0; i < timestamps.length; i++) {
                 const ts = timestamps[i];
                 if (y > ph - 90) { pdf.addPage(); y = M; }
-
                 const cardStartPage = pdf.internal.getCurrentPageInfo().pageNumber;
-                const cardStartY = y - 1;
-                y += 3;
-
-                // ── Timestamp pill — centered, auto-width ──
+                const cardStartY = y - 1; y += 3;
                 pdf.setFontSize(7.5);
                 const pillLabel = `> ${ts.timestamp}  -  Note #${i + 1}`;
-                const pillTextW = pdf.getTextWidth(pillLabel);
-                const pillW = pillTextW + 10;
+                const pillW = pdf.getTextWidth(pillLabel) + 10;
                 const pillX = M + 6;
-                pdf.setFillColor(...ACCENT);
-                pdf.roundedRect(pillX, y - 3.2, pillW, 6.5, 1.5, 1.5, 'F');
-                pdf.setFont(undefined, 'bold');
-                pdf.setTextColor(255, 255, 255);
-                pdf.textWithLink(pillLabel, pillX + pillW / 2, y + 0.2, {
-                    align: 'center',
-                    url: `https://www.youtube.com/watch?v=${videoId}&t=${ts.videoTime}s`
-                });
-                pdf.setFont(undefined, 'normal');
-                y += 8;
-
-                // ── Snapshot image ──
+                pdf.setFillColor(...ACCENT); pdf.roundedRect(pillX, y - 3.2, pillW, 6.5, 1.5, 1.5, 'F');
+                pdf.setFont(undefined, 'bold'); pdf.setTextColor(255, 255, 255);
+                pdf.textWithLink(pillLabel, pillX + pillW / 2, y + 0.2, { align: 'center', url: `https://www.youtube.com/watch?v=${videoId}&t=${ts.videoTime}s` });
+                pdf.setFont(undefined, 'normal'); y += 8;
                 if (ts.snapshot && ts.snapshot.startsWith('data:')) {
                     try {
-                        const imgW = Math.min(CW * 0.72, 116);
-                        const imgH = imgW * (9 / 16);
+                        const imgW = Math.min(CW * 0.72, 116), imgH = imgW * (9 / 16);
                         if (y + imgH > ph - M - 10) { pdf.addPage(); y = M; }
-                        pdf.setFillColor(200, 200, 220);
-                        pdf.roundedRect(M + 7, y + 0.5, imgW, imgH, 2, 2, 'F');
+                        pdf.setFillColor(200, 200, 220); pdf.roundedRect(M + 7, y + 0.5, imgW, imgH, 2, 2, 'F');
                         pdf.addImage(ts.snapshot, 'JPEG', M + 7, y, imgW, imgH, '', 'FAST');
-                        pdf.setDrawColor(...BORDER);
-                        pdf.setLineWidth(0.3);
-                        pdf.roundedRect(M + 7, y, imgW, imgH, 2, 2, 'D');
+                        pdf.setDrawColor(...BORDER); pdf.setLineWidth(0.3); pdf.roundedRect(M + 7, y, imgW, imgH, 2, 2, 'D');
                         y += imgH + 5;
-                    } catch (_) { /* skip broken images */ }
+                    } catch (_) { }
                 }
-
-                // ── User note ──
-                const noteText = (ts.note || '').trim();
-                if (noteText) {
-                    pdf.setFontSize(8.5);
-                    pdf.setTextColor(...TEXT2);
-                    y = await addTextWithNativeMathPdf(pdf, noteText, M + 7, y, CW - 16, 8.5, ...TEXT2, ph, M);
-                    y += 3;
-                }
-
-                // ── OCR extracted text ──
+                if ((ts.note || '').trim()) { pdf.setFontSize(8.5); pdf.setTextColor(...TEXT2); y = await addTextWithNativeMathPdf(pdf, ts.note.trim(), M + 7, y, CW - 16, 8.5, ...TEXT2, ph, M); y += 3; }
                 if (ts.ocrText) {
-                    pdf.setFillColor(230, 228, 252);
-                    pdf.roundedRect(M + 7, y - 2, CW - 14, 7, 1.2, 1.2, 'F');
-                    pdf.setFontSize(7);
-                    pdf.setFont(undefined, 'bold');
-                    pdf.setTextColor(...ACCENT);
-                    pdf.text('EXTRACTED TEXT', M + 10, y + 2);
-                    pdf.setFont(undefined, 'normal');
-                    y += 8;
-                    pdf.setFontSize(7.5);
-                    pdf.setTextColor(...TEXT2);
-                    y = await addTextWithNativeMathPdf(pdf, ts.ocrText, M + 9, y, CW - 18, 7.5, ...TEXT2, ph, M);
-                    y += 3;
+                    pdf.setFillColor(230, 228, 252); pdf.roundedRect(M + 7, y - 2, CW - 14, 7, 1.2, 1.2, 'F');
+                    pdf.setFontSize(7); pdf.setFont(undefined, 'bold'); pdf.setTextColor(...ACCENT);
+                    pdf.text('EXTRACTED TEXT', M + 10, y + 2); pdf.setFont(undefined, 'normal'); y += 8;
+                    y = await addTextWithNativeMathPdf(pdf, ts.ocrText, M + 9, y, CW - 18, 7.5, ...TEXT2, ph, M); y += 3;
                 }
-
-                // ── AI explanation ──
                 if (ts.aiExplanation) {
-                    pdf.setFillColor(245, 235, 255);
-                    pdf.roundedRect(M + 7, y - 2, CW - 14, 7, 1.2, 1.2, 'F');
-                    pdf.setFontSize(7);
-                    pdf.setFont(undefined, 'bold');
-                    pdf.setTextColor(...ACCENT2);
-                    pdf.text('AI EXPLANATION', M + 10, y + 2);
-                    pdf.setFont(undefined, 'normal');
-                    y += 8;
-                    pdf.setFontSize(7.5);
-                    pdf.setTextColor(...TEXT2);
-                    y = await addTextWithNativeMathPdf(pdf, ts.aiExplanation, M + 9, y, CW - 18, 7.5, ...TEXT2, ph, M);
-                    y += 3;
+                    pdf.setFillColor(245, 235, 255); pdf.roundedRect(M + 7, y - 2, CW - 14, 7, 1.2, 1.2, 'F');
+                    pdf.setFontSize(7); pdf.setFont(undefined, 'bold'); pdf.setTextColor(...ACCENT2);
+                    pdf.text('AI EXPLANATION', M + 10, y + 2); pdf.setFont(undefined, 'normal'); y += 8;
+                    y = await addTextWithNativeMathPdf(pdf, ts.aiExplanation, M + 9, y, CW - 18, 7.5, ...TEXT2, ph, M); y += 3;
                 }
-
                 y += 8;
-
-                // ── Card border + stripe drawn AFTER content (no fill = no overlap) ──
-                const cardEndPage = pdf.internal.getCurrentPageInfo().pageNumber;
-                const cardEndY = y;
+                const cardEndPage = pdf.internal.getCurrentPageInfo().pageNumber, cardEndY = y;
                 for (let pg = cardStartPage; pg <= cardEndPage; pg++) {
                     pdf.setPage(pg);
                     const segTop = (pg === cardStartPage) ? cardStartY : M - 1;
                     const segBottom = (pg === cardEndPage) ? cardEndY : ph - M;
                     const segH = segBottom - segTop;
                     if (segH <= 0) continue;
-                    pdf.setDrawColor(...BORDER);
-                    pdf.setLineWidth(0.3);
-                    pdf.roundedRect(M, segTop, CW, segH, 2.5, 2.5, 'D');
-                    pdf.setFillColor(...ACCENT);
-                    pdf.rect(M, segTop, 3, segH, 'F');
+                    pdf.setDrawColor(...BORDER); pdf.setLineWidth(0.3); pdf.roundedRect(M, segTop, CW, segH, 2.5, 2.5, 'D');
+                    pdf.setFillColor(...ACCENT); pdf.rect(M, segTop, 3, segH, 'F');
                 }
-                pdf.setPage(cardEndPage);
-                pdf.setTextColor(...TEXT2);
-                pdf.setFont(undefined, 'normal');
+                pdf.setPage(cardEndPage); pdf.setTextColor(...TEXT2); pdf.setFont(undefined, 'normal');
                 y += 4;
             }
         }
 
-        // ══════════════════════════════════════════
-        //  AI Q&A
-        // ══════════════════════════════════════════
         const selectedQA = aiResponses.filter(qa => qa.includedInPdf !== false);
         if (selectedQA.length) {
             if (y > ph - 40) { pdf.addPage(); y = M; }
-            drawSection('AI Q&A', '>');
-            y += 2;
-
+            drawSection('AI Q&A'); y += 2;
             for (let i = 0; i < selectedQA.length; i++) {
                 const qa = selectedQA[i];
                 if (y > ph - 30) { pdf.addPage(); y = M; }
-
-                // Question chip
-                pdf.setFillColor(230, 228, 252);
-                pdf.roundedRect(M, y - 3.5, CW, 8, 1.5, 1.5, 'F');
-                pdf.setDrawColor(...ACCENT);
-                pdf.setLineWidth(0.2);
-                pdf.roundedRect(M, y - 3.5, CW, 8, 1.5, 1.5, 'D');
-                pdf.setFont(undefined, 'bold');
-                pdf.setFontSize(8.5);
-                pdf.setTextColor(...ACCENT);
-                const qLabel = `Q${i + 1}`;
-                pdf.text(qLabel, M + 3, y + 1.2);
-                pdf.setFont(undefined, 'normal');
-                pdf.setFontSize(8.5);
-                pdf.setTextColor(...TEXT);
+                pdf.setFillColor(230, 228, 252); pdf.roundedRect(M, y - 3.5, CW, 8, 1.5, 1.5, 'F');
+                pdf.setDrawColor(...ACCENT); pdf.setLineWidth(0.2); pdf.roundedRect(M, y - 3.5, CW, 8, 1.5, 1.5, 'D');
+                pdf.setFont(undefined, 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...ACCENT);
+                pdf.text(`Q${i + 1}`, M + 3, y + 1.2);
+                pdf.setFont(undefined, 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(...TEXT);
                 const qText = pdf.splitTextToSize(qa.question, CW - 14);
                 pdf.text(qText, M + 12, y + 1.2);
                 y += Math.max(qText.length * 3.8, 8) + 3;
-
-                // Answer
                 y = await addTextWithNativeMathPdf(pdf, qa.answer, M + 4, y, CW - 8, 8.5, ...TEXT2, ph, M);
                 y += 8;
-
-                if (i < selectedQA.length - 1) {
-                    pdf.setDrawColor(...BORDER);
-                    pdf.setLineWidth(0.2);
-                    pdf.line(M, y - 3, pw - M, y - 3);
-                }
+                if (i < selectedQA.length - 1) { pdf.setDrawColor(...BORDER); pdf.setLineWidth(0.2); pdf.line(M, y - 3, pw - M, y - 3); }
             }
         }
 
-        // ══════════════════════════════════════════
-        //  PAGE FOOTERS (applied after all content)
-        // ══════════════════════════════════════════
         const totalPages = pdf.internal.getNumberOfPages();
         for (let p = 1; p <= totalPages; p++) {
             pdf.setPage(p);
-            pdf.setFillColor(245, 245, 252);
-            pdf.rect(0, ph - 10, pw, 10, 'F');
-            pdf.setFillColor(...ACCENT);
-            pdf.rect(0, ph - 10, pw, 0.7, 'F');
-            pdf.setFontSize(6.5);
-            pdf.setFont(undefined, 'normal');
-            pdf.setTextColor(...MUTED);
-            pdf.text('Generated by NotePilot', M, ph - 4.5);
-            pdf.setTextColor(...ACCENT);
-            pdf.text(`${p} / ${totalPages}`, pw - M, ph - 4.5, { align: 'right' });
-            if (videoTitle && p > 1) {
-                pdf.setTextColor(...MUTED);
-                pdf.text(videoTitle.slice(0, 60), pw / 2, ph - 4.5, { align: 'center' });
-            }
+            pdf.setFillColor(245, 245, 252); pdf.rect(0, ph - 10, pw, 10, 'F');
+            pdf.setFillColor(...ACCENT); pdf.rect(0, ph - 10, pw, 0.7, 'F');
+            pdf.setFontSize(6.5); pdf.setFont(undefined, 'normal');
+            pdf.setTextColor(...MUTED); pdf.text('Generated by NotePilot', M, ph - 4.5);
+            pdf.setTextColor(...ACCENT); pdf.text(`${p} / ${totalPages}`, pw - M, ph - 4.5, { align: 'right' });
+            if (videoTitle && p > 1) { pdf.setTextColor(...MUTED); pdf.text(videoTitle.slice(0, 60), pw / 2, ph - 4.5, { align: 'center' }); }
         }
-
         const safeName = title.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '_') || 'Study_Notes';
         pdf.save(`${safeName}.pdf`);
         showToast('PDF downloaded!', 'success');
-    } catch (err) {
-        console.error('PDF error:', err);
-        showToast('PDF generation failed', 'error');
-    }
+    } catch (err) { console.error('PDF error:', err); showToast('PDF generation failed', 'error'); }
 }
 
-// ============ GENERATE VIDEO SUMMARY ============
 async function generateSummary() {
     let prompt = 'Generate a concise 3-5 sentence summary of this YouTube video for study notes.\n\n';
     if (videoTitle) prompt += `Video title: "${videoTitle}"\n`;
     if (timestamps.length) {
-        prompt += 'Captured notes from the video:\n';
-        timestamps.forEach(ts => {
-            prompt += `- [${ts.timestamp}] ${ts.note || '(no note)'}`;
-            if (ts.ocrText) prompt += ` | Slide text: ${ts.ocrText.slice(0, 150)}`;
-            prompt += '\n';
-        });
+        prompt += 'Captured notes:\n';
+        timestamps.forEach(ts => { prompt += `- [${ts.timestamp}] ${ts.note || '(no note)'}${ts.ocrText ? ` | Slide: ${ts.ocrText.slice(0, 150)}` : ''}\n`; });
     }
-    if (aiResponses.length) {
-        prompt += 'Questions asked:\n';
-        aiResponses.forEach(qa => {
-            prompt += `- Q: ${qa.question}\n`;
-        });
-    }
-    prompt += '\nWrite a brief educational summary of the video content. Only output the summary text. Do not reference the video title.';
-
-    return await callAI([
-        { role: 'system', content: 'You are a study assistant. Generate concise educational video summaries. Do not mention or quote the video title.' },
-        { role: 'user', content: prompt }
-    ]);
+    prompt += '\nWrite a brief educational summary. Only output the summary text. Do not reference the video title.';
+    return callAI([{ role: 'system', content: 'You are a study assistant. Generate concise educational summaries. Do not mention or quote the video title.' }, { role: 'user', content: prompt }]);
 }
 
-// Fallback: build a local summary from notes when AI is unavailable
 function buildLocalSummary() {
     const parts = [];
-    if (videoTitle) {
-        parts.push(`This document contains study notes for "${videoTitle}".`);
-    } else {
-        parts.push('This document contains study notes captured from a YouTube video.');
-    }
-    if (timestamps.length) {
-        const notesWithText = timestamps.filter(t => t.note);
-        parts.push(`A total of ${timestamps.length} key moments were captured${notesWithText.length ? ', covering topics such as: ' + notesWithText.map(t => t.note.slice(0, 50)).join('; ') : ''}.`);
-    }
-    if (aiResponses.length) {
-        parts.push(`${aiResponses.length} questions were asked and answered through the AI assistant.`);
-    }
+    if (videoTitle) parts.push(`This document contains study notes for "${videoTitle}".`);
+    else parts.push('This document contains study notes captured from a YouTube video.');
+    if (timestamps.length) { const nwt = timestamps.filter(t => t.note); parts.push(`A total of ${timestamps.length} key moments were captured${nwt.length ? ', covering: ' + nwt.map(t => t.note.slice(0, 50)).join('; ') : ''}.`); }
+    if (aiResponses.length) parts.push(`${aiResponses.length} questions were asked and answered.`);
     return parts.join(' ');
 }
 
@@ -1217,10 +780,600 @@ function showToast(msg, type = 'info') {
     t.className = `toast toast-${type}`;
     t.textContent = msg;
     toasts.appendChild(t);
-    setTimeout(() => {
-        t.style.opacity = '0';
-        t.style.transform = 'translateY(6px)';
-        t.style.transition = 'all .2s';
-        setTimeout(() => t.remove(), 200);
-    }, 2200);
+    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(6px)'; t.style.transition = 'all .2s'; setTimeout(() => t.remove(), 200); }, 2200);
 }
+
+
+// =============================================================================
+// FEATURE 1: AI SUMMARY TIMELINE
+// =============================================================================
+
+// Fetch YouTube caption track URL from the active tab's content script
+// =============================================================================
+// FEATURE 2: SHARED STUDY ROOM
+// =============================================================================
+
+// ============ LIVE ROOM SYNC ============
+
+// Show a pulsing green dot on the Share button when a room is active
+function updateShareLiveIndicator() {
+    const btn = document.getElementById('share-btn');
+    if (!btn) return;
+    let dot = btn.querySelector('.share-live-dot');
+    if (sharedRoomId && BACKEND_URL) {
+        if (!dot) {
+            dot = document.createElement('span');
+            dot.className = 'share-live-dot';
+            btn.prepend(dot);
+        }
+        btn.title = 'Study room is live — captures sync automatically';
+    } else {
+        dot?.remove();
+        btn.title = 'Share study room with classmates';
+    }
+}
+
+// Push a brand-new capture (with image) to the room — fire and forget
+async function pushNoteToRoom(ts) {
+    if (!sharedRoomId || !BACKEND_URL || !ts) return;
+    try {
+        const idx = timestamps.indexOf(ts);
+        if (idx === -1) return;
+
+        const payload = {
+            id: ts.id,
+            timestamp: ts.timestamp,
+            videoTime: ts.videoTime,
+            note: ts.note || '',
+            ocrText: ts.ocrText || '',
+            aiExplanation: ts.aiExplanation || '',
+            snapshot: await compressSnapshot(ts.snapshot)
+        };
+
+        await fetch(`${BACKEND_URL}/api/rooms/${sharedRoomId}/notes/${idx}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        showRoomSyncToast();
+    } catch (err) {
+        console.warn('[NotePilot] pushNoteToRoom failed:', err.message);
+    }
+}
+
+// Push only text fields for an existing note (no image recompression)
+async function syncNoteTextToRoom(ts) {
+    if (!sharedRoomId || !BACKEND_URL || !ts) return;
+    try {
+        const idx = timestamps.indexOf(ts);
+        if (idx === -1) return;
+
+        await fetch(`${BACKEND_URL}/api/rooms/${sharedRoomId}/notes/${idx}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                note: ts.note || '',
+                ocrText: ts.ocrText || '',
+                aiExplanation: ts.aiExplanation || ''
+            })
+        });
+
+        showRoomSyncToast();
+    } catch (err) {
+        console.warn('[NotePilot] syncNoteTextToRoom failed:', err.message);
+    }
+}
+
+// Subtle "synced" confirmation — shows once per batch of changes
+let _syncToastTimer = null;
+function showRoomSyncToast() {
+    clearTimeout(_syncToastTimer);
+    _syncToastTimer = setTimeout(() => {
+        const btn = document.getElementById('share-btn');
+        if (!btn) return;
+        const orig = btn.innerHTML;
+        btn.innerHTML = btn.innerHTML.replace(/Share/, '✓ Synced');
+        setTimeout(() => { btn.innerHTML = orig; }, 1800);
+    }, 400);
+}
+
+// Compress a snapshot dataUrl to a smaller JPEG for Firebase upload
+function compressSnapshot(dataUrl, maxWidth = 1280) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            const scale = Math.min(1, maxWidth / img.width);
+            const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(c.toDataURL('image/jpeg', 0.88));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+    });
+}
+
+function generateRoomId() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+// Build the room URL from a roomId
+function buildRoomUrl(roomId) {
+    const apiEncoded = encodeURIComponent(BACKEND_URL);
+    return ROOM_VIEWER_URL
+        ? `${ROOM_VIEWER_URL}?r=${roomId}&api=${apiEncoded}`
+        : `${chrome.runtime.getURL('room/index.html')}?r=${roomId}&api=${apiEncoded}`;
+}
+
+// Show the room URL in the modal and wire copy/open buttons
+function showRoomUrl(roomUrl) {
+    const resultDiv = document.getElementById('share-result');
+    const urlEl = document.getElementById('share-result-url');
+    const doBtn = document.getElementById('share-do-btn');
+    if (resultDiv && urlEl) { urlEl.textContent = roomUrl; resultDiv.style.display = 'block'; }
+    if (doBtn) doBtn.style.display = 'none';
+
+    // Re-attach listeners each time (avoids duplicates via cloneNode trick)
+    const copyBtn = document.getElementById('share-copy-btn');
+    const openBtn = document.getElementById('share-open-btn');
+    if (copyBtn) {
+        const newCopy = copyBtn.cloneNode(true);
+        copyBtn.parentNode.replaceChild(newCopy, copyBtn);
+        newCopy.addEventListener('click', () => {
+            navigator.clipboard.writeText(roomUrl).then(() => showToast('Copied!', 'success'));
+        });
+    }
+    if (openBtn) {
+        const newOpen = openBtn.cloneNode(true);
+        openBtn.parentNode.replaceChild(newOpen, openBtn);
+        newOpen.addEventListener('click', () => chrome.tabs.create({ url: roomUrl }));
+    }
+}
+
+// Upload / update room on backend, then store the roomId persistently
+async function shareRoom(ownerName) {
+    if (!BACKEND_URL) { showToast('Backend not configured in config.js', 'error'); return; }
+    if (!timestamps.length) { showToast('No captures to share', 'error'); return; }
+
+    showToast('Compressing snapshots...', 'loading');
+    const doBtn = document.getElementById('share-do-btn');
+    if (doBtn) { doBtn.disabled = true; doBtn.textContent = 'Uploading...'; }
+
+    try {
+        const compressedNotes = await Promise.all(timestamps.map(async ts => ({
+            id: ts.id,
+            timestamp: ts.timestamp,
+            videoTime: ts.videoTime,
+            note: ts.note || '',
+            ocrText: ts.ocrText || '',
+            aiExplanation: ts.aiExplanation || '',
+            snapshot: await compressSnapshot(ts.snapshot)
+        })));
+
+        let roomId = sharedRoomId;
+
+        if (roomId) {
+            // Update existing room
+            const res = await fetch(`${BACKEND_URL}/api/rooms/${roomId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    videoTitle: videoTitle || 'Untitled Video',
+                    ownerName: ownerName || 'Anonymous',
+                    notes: compressedNotes
+                })
+            });
+            if (!res.ok) throw new Error('Update failed: ' + res.status);
+        } else {
+            // Create new room
+            const res = await fetch(`${BACKEND_URL}/api/rooms`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    videoId,
+                    videoTitle: videoTitle || 'Untitled Video',
+                    ownerName: ownerName || 'Anonymous',
+                    notes: compressedNotes
+                })
+            });
+            if (!res.ok) throw new Error('Create failed: ' + res.status);
+            const data = await res.json();
+            roomId = data.roomId;
+        }
+
+        // Persist the roomId so future shares reuse it
+        sharedRoomId = roomId;
+        await saveData();
+        updateShareLiveIndicator();
+
+        const roomUrl = buildRoomUrl(roomId);
+        try { await navigator.clipboard.writeText(roomUrl); } catch (_) { }
+        showRoomUrl(roomUrl);
+        showToast('Room shared! Link copied.', 'success');
+
+    } catch (err) {
+        console.error('Share error:', err);
+        showToast('Share failed: ' + err.message.slice(0, 80), 'error');
+        if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'Upload & Share'; }
+    }
+}
+
+function setupShareModal() {
+    const overlay = document.getElementById('share-modal-overlay');
+    const shareBtn = document.getElementById('share-btn');
+    const closeBtn = document.getElementById('share-modal-close');
+    const cancelBtn = document.getElementById('share-cancel-btn');
+    const doBtn = document.getElementById('share-do-btn');
+    const nameInput = document.getElementById('share-name-input');
+
+    if (!overlay || !shareBtn) return;
+
+    const openModal = () => {
+        const result = document.getElementById('share-result');
+        const doButton = document.getElementById('share-do-btn');
+
+        if (nameInput) nameInput.value = localStorage.getItem('np_ownerName') || '';
+        overlay.style.display = 'flex';
+        requestAnimationFrame(() => overlay.classList.add('modal-visible'));
+
+        if (sharedRoomId && BACKEND_URL) {
+            // Room already exists for this video — show the link immediately, no re-upload needed
+            const roomUrl = buildRoomUrl(sharedRoomId);
+            if (result) { result.style.display = 'block'; }
+            const urlEl = document.getElementById('share-result-url');
+            if (urlEl) urlEl.textContent = roomUrl;
+            if (doButton) { doButton.style.display = ''; doButton.disabled = false; doButton.textContent = 'Update Room'; }
+            showRoomUrl(roomUrl);
+            // Don't focus name input — focus copy button instead
+            document.getElementById('share-copy-btn')?.focus();
+        } else {
+            // First share — reset to upload state
+            if (result) result.style.display = 'none';
+            if (doButton) { doButton.style.display = ''; doButton.disabled = false; doButton.textContent = 'Upload & Share'; }
+            if (nameInput) nameInput.focus();
+        }
+    };
+    const closeModal = () => {
+        overlay.classList.remove('modal-visible');
+        setTimeout(() => { overlay.style.display = 'none'; }, 220);
+    };
+
+    shareBtn.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+    doBtn?.addEventListener('click', () => {
+        const name = nameInput?.value.trim() || 'Anonymous';
+        localStorage.setItem('np_ownerName', name);
+        shareRoom(name);
+    });
+
+    // Allow Enter in name input to submit
+    nameInput?.addEventListener('keypress', e => { if (e.key === 'Enter') doBtn?.click(); });
+}
+
+// =============================================================================
+// QUIZ SYSTEM — Full-video AI Quiz (transcript + notes)
+// =============================================================================
+
+const quizContainer = document.getElementById('quiz-container');
+
+let quizState = {
+    questions: [],   // [{topic,difficulty,question,options,correctIndex,explanation,timestampHint}]
+    current: 0,
+    score: 0,
+    answers: [],     // [{qIdx, chosen, correct}]
+    active: false,
+    transcriptUsed: false,
+    sourceMode: 'transcript'
+};
+
+// ── Idle / start screen ──
+function renderQuizIdle() {
+    const noVideo = !videoId;
+    const hasNotes = timestamps.length > 0 || aiResponses.length > 0;
+
+    quizContainer.innerHTML = `
+        <div class="quiz-idle">
+            <div class="quiz-idle-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <h3>AI Quiz Mode</h3>
+            <p>10 questions generated from the entire video transcript for deep active recall.</p>
+            ${noVideo ? '<div class="quiz-idle-warn red">Open a YouTube video first</div>' : ''}
+            ${!noVideo && !hasNotes ? '<div class="quiz-idle-warn amber">Tip: capture frames for richer questions</div>' : ''}
+            <div class="quiz-source-row">
+                <button class="quiz-src-opt selected" data-mode="transcript">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    Full transcript
+                </button>
+                <button class="quiz-src-opt" data-mode="notes">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                    My notes only
+                </button>
+            </div>
+            <button class="btn-gen-quiz" id="gen-quiz-btn" ${noVideo ? 'disabled' : ''}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Generate Quiz
+            </button>
+        </div>`;
+
+    quizContainer.querySelectorAll('.quiz-src-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            quizContainer.querySelectorAll('.quiz-src-opt').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            quizState.sourceMode = btn.dataset.mode;
+        });
+    });
+    document.getElementById('gen-quiz-btn')?.addEventListener('click', startQuiz);
+}
+
+// ── Loading screen ──
+function renderQuizLoading(msg = 'Preparing quiz…', sub = 'This takes about 15 seconds') {
+    quizContainer.innerHTML = `
+        <div class="quiz-loading">
+            <div class="quiz-spinner"></div>
+            <div class="quiz-load-title">${msg}</div>
+            <div class="quiz-load-sub">${sub}</div>
+        </div>`;
+}
+
+// ── Fetch transcript via content script ──
+async function fetchTranscript() {
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.url?.includes('youtube.com')) return '';
+        const resp = await chrome.tabs.sendMessage(tab.id, { action: 'getTranscript', videoId });
+        if (resp?.success && resp.text?.length > 50) {
+            console.log(`[NotePilot] Transcript OK (${resp.trackKind}, ${resp.langCode}): ${resp.text.length} chars`);
+            return resp.text;
+        }
+        console.warn('[NotePilot] Transcript failed:', resp?.reason);
+        return '';
+    } catch (err) {
+        console.warn('[NotePilot] fetchTranscript error:', err);
+        return '';
+    }
+}
+
+// ── Build AI prompt context ──
+function buildQuizContext(transcript) {
+    let ctx = '';
+    if (videoTitle) ctx += `VIDEO TITLE: "${videoTitle}"\n\n`;
+    if (transcript) {
+        const chunk = transcript.length > 7000 ? transcript.slice(0, 7000) + ' …[truncated]' : transcript;
+        ctx += `FULL VIDEO TRANSCRIPT:\n${chunk}\n\n`;
+    }
+    if (timestamps.length) {
+        ctx += 'CAPTURED FRAMES & NOTES:\n';
+        timestamps.forEach(ts => {
+            let line = `[${ts.timestamp}]`;
+            if (ts.note) line += ` Note: ${ts.note}.`;
+            if (ts.ocrText) line += ` Slide: ${ts.ocrText.slice(0, 300)}`;
+            ctx += line + '\n';
+        });
+        ctx += '\n';
+    }
+    if (aiResponses.length) {
+        ctx += 'Q&A HISTORY:\n';
+        aiResponses.forEach(qa => ctx += `Q: ${qa.question}\nA: ${qa.answer.slice(0, 200)}\n`);
+    }
+    return ctx.trim();
+}
+
+// ── Generate questions via Groq ──
+async function generateQuizQuestions(context) {
+    const res = await fetch(`${BACKEND_URL}/api/ai/quiz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context })
+    });
+    if (!res.ok) throw new Error('Quiz generation failed: ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data?.questions) || !data.questions.length) throw new Error('No questions returned');
+    return data;
+}
+
+// ── Start the quiz ──
+async function startQuiz() {
+    if (!videoId) { showToast('Open a YouTube video first', 'error'); return; }
+    const mode = quizState.sourceMode || 'transcript';
+    quizState = { questions: [], current: 0, score: 0, answers: [], active: false, transcriptUsed: false, sourceMode: mode };
+
+    let transcript = '';
+    if (mode === 'transcript') {
+        renderQuizLoading('Fetching video transcript…', 'Reading captions from YouTube');
+        transcript = await fetchTranscript();
+        quizState.transcriptUsed = transcript.length > 100;
+        if (!quizState.transcriptUsed) {
+            const hasNotes = timestamps.length > 0 || aiResponses.length > 0;
+            if (!hasNotes) { renderQuizIdle(); showToast('No captions & no notes found', 'error'); return; }
+            showToast('No transcript — using captures & notes', 'info');
+        }
+    } else {
+        const hasNotes = timestamps.length > 0 || aiResponses.length > 0;
+        if (!hasNotes) { renderQuizIdle(); showToast('No notes captured yet', 'error'); return; }
+    }
+
+    renderQuizLoading('Generating questions…', 'AI is reading the video content');
+    try {
+        const data = await generateQuizQuestions(buildQuizContext(transcript));
+        quizState.questions = data.questions;
+        quizState.active = true;
+        document.getElementById('quiz-badge').style.display = 'inline-flex';
+        renderQuizQuestion(0);
+    } catch (err) {
+        console.error('Quiz generation error:', err);
+        renderQuizIdle();
+        showToast('Quiz generation failed — try again', 'error');
+    }
+}
+
+// ── Render one question ──
+function renderQuizQuestion(idx) {
+    const q = quizState.questions[idx];
+    const total = quizState.questions.length;
+    const pct = Math.round((idx / total) * 100);
+    const letters = ['A', 'B', 'C', 'D'];
+    const diffClass = { easy: 'easy', medium: 'medium', hard: 'hard' }[q.difficulty] || 'medium';
+
+    quizContainer.innerHTML = `
+        <div class="quiz-progress-wrap">
+            <div class="quiz-progress-top">
+                <span class="quiz-progress-label">Question ${idx + 1} of ${total}</span>
+                <span class="quiz-progress-frac">Score: ${quizState.score} / ${idx}</span>
+            </div>
+            <div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="quiz-q-card">
+            <div class="quiz-q-topic">${escapeHtml(q.topic || 'General')}</div>
+            <div class="quiz-q-text">${escapeHtml(q.question)}</div>
+            <span class="quiz-q-diff ${diffClass}">${q.difficulty || 'medium'}</span>
+        </div>
+        <div class="quiz-options" id="quiz-opts">
+            ${q.options.map((opt, i) => `
+                <button class="quiz-opt" data-idx="${i}">
+                    <span class="quiz-opt-letter">${letters[i]}</span>
+                    <span>${escapeHtml(opt)}</span>
+                </button>`).join('')}
+        </div>
+        <div class="quiz-explanation" id="quiz-expl">
+            <div class="quiz-expl-label">Explanation</div>
+            <div id="quiz-expl-text"></div>
+        </div>
+        <button class="quiz-next-btn" id="quiz-next">${idx + 1 < total ? 'Next Question →' : 'See Results'}</button>
+        <div class="quiz-src-tag">
+            <span class="quiz-src-dot ${quizState.transcriptUsed ? '' : 'amber'}"></span>
+            ${quizState.transcriptUsed ? 'Full video transcript used' : 'Captures & notes only'}
+        </div>`;
+
+    document.querySelectorAll('.quiz-opt').forEach(btn =>
+        btn.addEventListener('click', () => handleAnswer(parseInt(btn.dataset.idx)))
+    );
+    document.getElementById('quiz-next').addEventListener('click', () => {
+        const next = quizState.current + 1;
+        if (next < quizState.questions.length) { quizState.current = next; renderQuizQuestion(next); }
+        else renderQuizResults();
+    });
+}
+
+// ── Handle answer selection ──
+function handleAnswer(chosenIdx) {
+    const q = quizState.questions[quizState.current];
+    const correct = chosenIdx === q.correctIndex;
+    if (correct) quizState.score++;
+    quizState.answers.push({ qIdx: quizState.current, chosen: chosenIdx, correct });
+
+    document.querySelectorAll('.quiz-opt').forEach((btn, i) => {
+        btn.disabled = true;
+        if (i === q.correctIndex) btn.classList.add('correct');
+        else if (i === chosenIdx && !correct) btn.classList.add('wrong');
+        else btn.classList.add('dimmed');
+    });
+    document.getElementById('quiz-expl-text').textContent = q.explanation || '';
+    document.getElementById('quiz-expl').classList.add('show');
+    document.getElementById('quiz-next').classList.add('show');
+}
+
+// ── Score ring SVG ──
+function buildScoreRing(score, total) {
+    const pct = score / total;
+    const R = 35, C = 2 * Math.PI * R;
+    const color = pct >= 0.8 ? '#10b981' : pct >= 0.5 ? '#f59e0b' : '#ef4444';
+    return `<svg width="84" height="84" viewBox="0 0 84 84">
+        <circle cx="42" cy="42" r="${R}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="6.5"/>
+        <circle cx="42" cy="42" r="${R}" fill="none" stroke="${color}" stroke-width="6.5"
+            stroke-dasharray="${(pct * C).toFixed(1)} ${C.toFixed(1)}" stroke-linecap="round"/>
+    </svg>`;
+}
+
+// ── Results screen ──
+function renderQuizResults() {
+    quizState.active = false;
+    const total = quizState.questions.length;
+    const score = quizState.score;
+    const pct = Math.round((score / total) * 100);
+    const msg = pct === 100 ? '🏆 Perfect score!' : pct >= 80 ? '🎯 Excellent!' : pct >= 60 ? '📚 Good effort!' : pct >= 40 ? '💪 Keep studying!' : '🔁 Needs more review';
+
+    const breakdown = quizState.answers.map(a => {
+        const q = quizState.questions[a.qIdx];
+        const matchedTs = timestamps.find(ts => q.timestampHint && ts.timestamp === q.timestampHint);
+        return `<div class="quiz-bd-item ${a.correct ? 'right' : 'wrong'}">
+            <span class="quiz-bd-icon">${a.correct ? '✓' : '✗'}</span>
+            <div class="quiz-bd-body">
+                <div class="quiz-bd-q">${escapeHtml(q.question)}</div>
+                ${!a.correct ? `<div class="quiz-bd-correct">Correct: ${escapeHtml(q.options[q.correctIndex])}</div>` : ''}
+                ${!a.correct && (matchedTs || q.timestampHint) ? `<button class="quiz-bd-rewatch" data-time="${matchedTs?.videoTime ?? 0}">↩ Rewatch at ${q.timestampHint || matchedTs?.timestamp || '0:00'}</button>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    quizContainer.innerHTML = `
+        <div class="quiz-results">
+            <div class="quiz-score-ring">
+                ${buildScoreRing(score, total)}
+                <div class="quiz-score-ring-text">
+                    <span class="quiz-score-num">${score}</span>
+                    <span class="quiz-score-denom">/ ${total}</span>
+                </div>
+            </div>
+            <div class="quiz-score-msg">${msg}</div>
+            <div class="quiz-score-pct">${pct}% · ${total - score} missed</div>
+            <div class="quiz-breakdown">${breakdown}</div>
+            <div class="quiz-result-btns">
+                <button class="btn-quiz-retry" id="quiz-retry-btn">↺ Retry</button>
+                <button class="btn-quiz-new"   id="quiz-new-btn">New Quiz</button>
+            </div>
+            <div class="quiz-src-tag">
+                <span class="quiz-src-dot ${quizState.transcriptUsed ? '' : 'amber'}"></span>
+                ${quizState.transcriptUsed ? 'Full video transcript used' : 'Captures & notes only'}
+            </div>
+        </div>`;
+
+    quizContainer.querySelectorAll('.quiz-bd-rewatch').forEach(btn =>
+        btn.addEventListener('click', async () => {
+            const t = parseInt(btn.dataset.time) || 0;
+            try {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (tab?.url?.includes('youtube.com/watch')) {
+                    // Seek the existing tab — no new tab opened
+                    await chrome.tabs.sendMessage(tab.id, { action: 'seekTo', time: t });
+                    window.close(); // close popup so the video is visible
+                }
+            } catch {
+                // Fallback: focus the tab if messaging fails
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => [null]);
+                if (tab) chrome.tabs.update(tab.id, { active: true });
+            }
+        })
+    );
+    document.getElementById('quiz-retry-btn').addEventListener('click', () => {
+        quizState.current = 0; quizState.score = 0; quizState.answers = []; quizState.active = true;
+        renderQuizQuestion(0);
+    });
+    document.getElementById('quiz-new-btn').addEventListener('click', startQuiz);
+}
+
+// ── Show idle screen when Quiz tab first clicked ──
+document.querySelectorAll('.tab[data-panel="quiz"]').forEach(tab => {
+    tab.addEventListener('click', () => {
+        if (!quizState.active && !quizState.questions.length) renderQuizIdle();
+    });
+});

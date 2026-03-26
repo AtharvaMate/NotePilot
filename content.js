@@ -4,8 +4,76 @@
 (function () {
     'use strict';
 
+
     // ====== Message Listener (for extension popup) ======
     chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+
+        // ── Transcript fetcher: reads caption track URLs from ytInitialPlayerResponse ──
+        if (msg.action === 'getTranscript') {
+            (async () => {
+                try {
+                    // 1. Get player data (already in page memory)
+                    const playerData = window.ytInitialPlayerResponse || (() => {
+                        for (const s of document.querySelectorAll('script')) {
+                            const m = s.textContent.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
+                            if (m) { try { return JSON.parse(m[1]); } catch { continue; } }
+                        }
+                        return null;
+                    })();
+
+                    if (!playerData) { sendResponse({ success: false, text: '', reason: 'no_player_data' }); return; }
+
+                    const tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+                    if (!tracks?.length) { sendResponse({ success: false, text: '', reason: 'no_captions' }); return; }
+
+                    // 2. Pick best English track (manual > auto-generated > any)
+                    const rank = t => {
+                        const lc = (t.languageCode || '').toLowerCase();
+                        const isEn = lc.startsWith('en');
+                        const isAsr = t.kind === 'asr' || (t.vssId || '').startsWith('a.');
+                        if (isEn && !isAsr) return 0;
+                        if (isEn && isAsr) return 1;
+                        if (!isAsr) return 2;
+                        return 3;
+                    };
+                    const track = [...tracks].sort((a, b) => rank(a) - rank(b))[0];
+                    if (!track?.baseUrl) { sendResponse({ success: false, text: '', reason: 'no_track_url' }); return; }
+
+                    // 3. Fetch as json3
+                    const url = track.baseUrl.replace(/[&?]fmt=[^&]*/g, '') +
+                        (track.baseUrl.includes('?') ? '&' : '?') + 'fmt=json3';
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+
+                    if (!data?.events?.length) { sendResponse({ success: false, text: '', reason: 'empty_events' }); return; }
+
+                    // 4. Flatten to plain text
+                    const text = data.events
+                        .filter(e => Array.isArray(e.segs))
+                        .map(e => e.segs.map(s => (s.utf8 || '').replace(/\n/g, ' ')).join(''))
+                        .join(' ')
+                        .replace(/\s{2,}/g, ' ')
+                        .trim();
+
+                    sendResponse({ success: true, text, trackKind: track.kind || 'manual', langCode: track.languageCode || 'en' });
+                } catch (err) {
+                    sendResponse({ success: false, text: '', reason: err.message });
+                }
+            })();
+            return true; // keep channel open
+        }
+
+        if (msg.action === 'seekTo') {
+            const video = document.querySelector('video');
+            if (video) {
+                video.currentTime = msg.time;
+                video.play();
+            }
+            sendResponse({ success: !!video });
+            return true;
+        }
+
         if (msg.action === 'getVideoInfo') {
             const video = document.querySelector('video');
             const titleEl = document.querySelector('h1.ytd-watch-metadata yt-formatted-string')
@@ -26,18 +94,11 @@
                     duration: video.duration,
                     title: ytTitle,
                     videoId: urlParams.get('v') || '',
-                    rect: {
-                        x: rect.x, y: rect.y,
-                        width: rect.width, height: rect.height
-                    },
+                    rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
                     devicePixelRatio: window.devicePixelRatio || 1
                 });
             } else {
-                sendResponse({
-                    hasVideo: false,
-                    title: ytTitle,
-                    videoId: urlParams.get('v') || ''
-                });
+                sendResponse({ hasVideo: false, title: ytTitle, videoId: urlParams.get('v') || '' });
             }
             return true;
         }
@@ -73,24 +134,14 @@
     async function captureAndShowPopup() {
         const video = document.querySelector('video');
         if (!video) return showPlayerToast('No video found');
-
         const rect = video.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-
-        // Request screenshot from background service worker
         try {
             const response = await chrome.runtime.sendMessage({ action: 'captureVisibleTab' });
-            if (!response || !response.success) {
-                showPlayerToast('Capture failed — try again');
-                return;
-            }
-
-            // Crop to video area
+            if (!response || !response.success) { showPlayerToast('Capture failed — try again'); return; }
             const snapshot = await cropToVideo(response.dataUrl, rect, dpr);
-
             const t = Math.floor(video.currentTime);
             const label = `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}`;
-
             showNotePopup(snapshot, label, t);
         } catch (err) {
             console.error('NotePilot capture error:', err);
@@ -103,10 +154,8 @@
             const img = new Image();
             img.onload = () => {
                 const c = document.createElement('canvas');
-                const sx = Math.round(rect.x * dpr);
-                const sy = Math.round(rect.y * dpr);
-                const sw = Math.round(rect.width * dpr);
-                const sh = Math.round(rect.height * dpr);
+                const sx = Math.round(rect.x * dpr), sy = Math.round(rect.y * dpr);
+                const sw = Math.round(rect.width * dpr), sh = Math.round(rect.height * dpr);
                 c.width = sw; c.height = sh;
                 c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
                 resolve(c.toDataURL('image/jpeg', 0.88));
@@ -116,9 +165,7 @@
         });
     }
 
-    // ====== Note Popup Overlay ======
     function showNotePopup(snapshot, label, videoTime) {
-        // Remove existing popup
         const existing = document.getElementById('np-popup-overlay');
         if (existing) existing.remove();
 
@@ -159,18 +206,12 @@
 
         document.body.appendChild(overlay);
         requestAnimationFrame(() => overlay.classList.add('np-visible'));
-
-        // Focus textarea
         setTimeout(() => document.getElementById('np-popup-note').focus(), 300);
 
-        // Close handlers
         document.getElementById('np-popup-close').onclick = () => closePopup(overlay);
         document.getElementById('np-popup-cancel').onclick = () => closePopup(overlay);
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) closePopup(overlay);
-        });
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) closePopup(overlay); });
 
-        // Save handler
         document.getElementById('np-popup-save').onclick = async () => {
             const note = document.getElementById('np-popup-note').value;
             await saveCapture(snapshot, label, videoTime, note);
@@ -178,12 +219,8 @@
             showPlayerToast('✓ Captured & saved!');
         };
 
-        // Escape key
         const escHandler = (e) => {
-            if (e.key === 'Escape') {
-                closePopup(overlay);
-                document.removeEventListener('keydown', escHandler);
-            }
+            if (e.key === 'Escape') { closePopup(overlay); document.removeEventListener('keydown', escHandler); }
         };
         document.addEventListener('keydown', escHandler);
     }
@@ -193,7 +230,9 @@
         setTimeout(() => overlay.remove(), 250);
     }
 
-    // ====== Save Capture to chrome.storage ======
+    // Backend URL — must match config.js
+    const CONTENT_BACKEND_URL = 'http://localhost:3001';
+
     async function saveCapture(snapshot, label, videoTime, note) {
         const urlParams = new URLSearchParams(window.location.search);
         const vId = urlParams.get('v') || '';
@@ -204,31 +243,34 @@
             || document.querySelector('title');
         const ytTitle = titleEl ? (titleEl.textContent || '').replace(' - YouTube', '').trim() : '';
 
-        const key = `np_${vId}`;
-        const result = await chrome.storage.local.get(key);
-        const data = result[key] || {
-            timestamps: [],
-            aiResponses: [],
-            videoTitle: ytTitle,
-            videoId: vId,
-            pdfTitleVal: ytTitle,
-            savedAt: Date.now()
-        };
+        try {
+            // Load existing data from backend
+            const loadRes = await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`);
+            const existing = await loadRes.json();
+            const timestamps = existing?.timestamps || [];
+            const aiResponses = existing?.aiResponses || [];
 
-        data.timestamps.push({
-            id: Date.now().toString(),
-            timestamp: label,
-            videoTime: videoTime,
-            note: note || '',
-            snapshot: snapshot,
-            ocrText: ''
-        });
-        data.savedAt = Date.now();
+            timestamps.push({
+                id: Date.now().toString(), timestamp: label, videoTime,
+                note: note || '', snapshot, ocrText: ''
+            });
 
-        await chrome.storage.local.set({ [key]: data });
+            // Save back to backend
+            await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    videoTitle: ytTitle,
+                    timestamps,
+                    aiResponses,
+                    pdfTitleVal: ytTitle
+                })
+            });
+        } catch (err) {
+            console.error('[NotePilot] saveCapture error:', err);
+        }
     }
 
-    // ====== Player Toast ======
     function showPlayerToast(msg) {
         let toast = document.getElementById('np-player-toast');
         if (!toast) {
@@ -241,18 +283,13 @@
         setTimeout(() => toast.classList.remove('np-toast-visible'), 2000);
     }
 
-    // ====== Injection Lifecycle (YouTube SPA) ======
     function tryInject() {
-        if (window.location.pathname === '/watch') {
-            injectCaptureButton();
-        }
+        if (window.location.pathname === '/watch') injectCaptureButton();
     }
 
-    // Re-inject on SPA navigation
     const observer = new MutationObserver(() => tryInject());
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Initial injection with retries (YT loads controls dynamically)
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', tryInject);
     } else {

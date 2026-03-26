@@ -1,31 +1,46 @@
 {
     "manifest_version": 3,
     "name": "NotePilot",
-    "version": "1.1.0",
-    "description": "AI-Powered YouTube Study Notes — Capture frames, take notes, ask AI, export PDF.",
+    "version": "2.0.0",
+    "description": "AI-Powered YouTube Study Notes — Capture frames, take notes, ask AI, export PDF, share study rooms.",
     "permissions": [
         "activeTab",
-        "scripting",
-        "storage"
+        "scripting"
     ],
     "host_permissions": [
         "https://www.youtube.com/*",
-        "https://api.groq.com/*",
-        "https://noembed.com/*"
+        "https://noembed.com/*",
+        "http://localhost:3001/*"
     ],
     "background": {
         "service_worker": "background.js"
     },
     "action": {
         "default_popup": "index.html",
-        "default_title": "NotePilot — Capture, Learn, Excel"
+        "default_title": "NotePilot — Capture, Learn, Share"
     },
     "content_scripts": [
         {
-            "matches": ["https://www.youtube.com/*"],
-            "js": ["content.js"],
-            "css": ["content-inject.css"],
+            "matches": [
+                "https://www.youtube.com/*"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "css": [
+                "content-inject.css"
+            ],
             "run_at": "document_idle"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "room/index.html"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
         }
     ],
     "icons": {}
