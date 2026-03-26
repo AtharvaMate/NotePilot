@@ -3,12 +3,24 @@ const BACKEND_URL = (typeof NOTEPILOT_CONFIG !== 'undefined' && NOTEPILOT_CONFIG
     ? NOTEPILOT_CONFIG.BACKEND_URL.replace(/\/$/, '') : 'http://localhost:3001';
 const ROOM_VIEWER_URL = (typeof NOTEPILOT_CONFIG !== 'undefined' && NOTEPILOT_CONFIG.ROOM_VIEWER_URL)
     ? NOTEPILOT_CONFIG.ROOM_VIEWER_URL.replace(/\/$/, '') : '';
+const GOOGLE_CLIENT_ID = (typeof NOTEPILOT_CONFIG !== 'undefined' && NOTEPILOT_CONFIG.GOOGLE_CLIENT_ID)
+    ? NOTEPILOT_CONFIG.GOOGLE_CLIENT_ID : '';
+
+// ============ AUTH ============
+let authToken = localStorage.getItem('np_token') || '';
+let currentUser = null;
+
+function authHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    if (authToken) h['Authorization'] = `Bearer ${authToken}`;
+    return h;
+}
 
 // ============ AI HELPER (via backend proxy) ============
 async function callAI(messages, opts = {}) {
     const res = await fetch(`${BACKEND_URL}/api/ai/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ messages, temperature: opts.temperature ?? 0.7, max_tokens: opts.max_tokens ?? 1024 })
     });
     if (!res.ok) {
@@ -25,7 +37,7 @@ async function callAI(messages, opts = {}) {
 async function callAIVision(messages, opts = {}) {
     const res = await fetch(`${BACKEND_URL}/api/ai/vision`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ messages, temperature: opts.temperature ?? 0.1, max_tokens: opts.max_tokens ?? 1024 })
     });
     if (!res.ok) {
@@ -62,12 +74,137 @@ const pdfTitle = document.getElementById('pdf-title');
 const exportBtn = document.getElementById('export-btn');
 const toasts = document.getElementById('toasts');
 
+// Auth DOM
+const authOverlay = document.getElementById('auth-overlay');
+const authTitle = document.getElementById('auth-title');
+const authError = document.getElementById('auth-error');
+const authNameInput = document.getElementById('auth-name');
+const authEmailInput = document.getElementById('auth-email');
+const authPasswordInput = document.getElementById('auth-password');
+const authSubmitBtn = document.getElementById('auth-submit-btn');
+const authToggleText = document.getElementById('auth-toggle-text');
+const authToggleLink = document.getElementById('auth-toggle-link');
+const googleSignInBtn = document.getElementById('google-signin-btn');
+const userInfoEl = document.getElementById('user-info');
+const logoutBtn = document.getElementById('logout-btn');
+let authMode = 'login'; // 'login' or 'register'
+
+// ============ AUTH UI ============
+function showAuthOverlay() {
+    authOverlay.style.display = 'flex';
+}
+function hideAuthOverlay() {
+    authOverlay.style.display = 'none';
+}
+function setAuthError(msg) {
+    authError.textContent = msg;
+    authError.style.display = msg ? 'block' : 'none';
+}
+function toggleAuthMode() {
+    authMode = authMode === 'login' ? 'register' : 'login';
+    if (authMode === 'register') {
+        authTitle.textContent = 'Create your account';
+        authSubmitBtn.textContent = 'Register';
+        authToggleText.textContent = 'Already have an account?';
+        authToggleLink.textContent = ' Sign In';
+        authNameInput.style.display = 'block';
+    } else {
+        authTitle.textContent = 'Sign in to continue';
+        authSubmitBtn.textContent = 'Sign In';
+        authToggleText.textContent = "Don't have an account?";
+        authToggleLink.textContent = ' Register';
+        authNameInput.style.display = 'none';
+    }
+    setAuthError('');
+}
+authToggleLink.addEventListener('click', (e) => { e.preventDefault(); toggleAuthMode(); });
+
+async function handleAuthSubmit() {
+    const email = authEmailInput.value.trim();
+    const password = authPasswordInput.value;
+    const name = authNameInput.value.trim();
+    if (!email || !password) { setAuthError('Email and password required'); return; }
+    if (authMode === 'register' && password.length < 6) { setAuthError('Password must be at least 6 characters'); return; }
+
+    authSubmitBtn.disabled = true;
+    authSubmitBtn.textContent = 'Please wait...';
+    setAuthError('');
+
+    try {
+        const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
+        const body = authMode === 'register' ? { email, password, name } : { email, password };
+        const res = await fetch(`${BACKEND_URL}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) { setAuthError(data.error || 'Auth failed'); return; }
+
+        authToken = data.token;
+        currentUser = data.user;
+        localStorage.setItem('np_token', authToken);
+        hideAuthOverlay();
+        showUserInfo();
+        detectVideo();
+    } catch (err) {
+        setAuthError('Network error — is the server running?');
+    } finally {
+        authSubmitBtn.disabled = false;
+        authSubmitBtn.textContent = authMode === 'register' ? 'Register' : 'Sign In';
+    }
+}
+authSubmitBtn.addEventListener('click', handleAuthSubmit);
+authPasswordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAuthSubmit(); });
+
+// Google auth (placeholder — needs client ID)
+googleSignInBtn.addEventListener('click', () => {
+    showToast('Google Sign-In requires a Client ID. Please set up OAuth in Google Cloud Console.', 'warn');
+});
+
+function showUserInfo() {
+    if (currentUser) {
+        userInfoEl.textContent = currentUser.name || currentUser.email;
+        userInfoEl.style.display = 'block';
+        logoutBtn.style.display = 'inline-flex';
+    }
+}
+logoutBtn.addEventListener('click', () => {
+    authToken = '';
+    currentUser = null;
+    localStorage.removeItem('np_token');
+    userInfoEl.style.display = 'none';
+    logoutBtn.style.display = 'none';
+    showAuthOverlay();
+});
+
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
     setupShareModal();
-    detectVideo();
+
+    // Check if logged in
+    if (authToken) {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/auth/me`, { headers: authHeaders() });
+            if (res.ok) {
+                currentUser = await res.json();
+                hideAuthOverlay();
+                showUserInfo();
+                detectVideo();
+            } else {
+                // Token invalid
+                authToken = '';
+                localStorage.removeItem('np_token');
+                showAuthOverlay();
+            }
+        } catch (e) {
+            showAuthOverlay();
+        }
+    } else {
+        showAuthOverlay();
+    }
 }
 
 async function detectVideo() {
@@ -93,13 +230,13 @@ function setStatus(online, text) {
     statusText.textContent = text;
 }
 
-// ============ PERSISTENCE (Backend API) ============
+// ============ PERSISTENCE (Backend API with auth) ============
 async function saveData() {
-    if (!videoId) return;
+    if (!videoId || !authToken) return;
     try {
         await fetch(`${BACKEND_URL}/api/videos/${videoId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders(),
             body: JSON.stringify({
                 videoTitle, timestamps, aiResponses,
                 pdfTitleVal: pdfTitle.value,
@@ -112,7 +249,7 @@ async function saveData() {
 async function loadData() {
     if (!videoId) return;
     try {
-        const res = await fetch(`${BACKEND_URL}/api/videos/${videoId}`);
+        const res = await fetch(`${BACKEND_URL}/api/videos/${videoId}`, { headers: authHeaders() });
         const data = await res.json();
         if (data) {
             timestamps = data.timestamps || [];
@@ -832,7 +969,7 @@ async function pushNoteToRoom(ts) {
 
         await fetch(`${BACKEND_URL}/api/rooms/${sharedRoomId}/notes/${idx}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders(),
             body: JSON.stringify(payload)
         });
 
@@ -851,7 +988,7 @@ async function syncNoteTextToRoom(ts) {
 
         await fetch(`${BACKEND_URL}/api/rooms/${sharedRoomId}/notes/${idx}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders(),
             body: JSON.stringify({
                 note: ts.note || '',
                 ocrText: ts.ocrText || '',
@@ -959,7 +1096,7 @@ async function shareRoom(ownerName) {
             // Update existing room
             const res = await fetch(`${BACKEND_URL}/api/rooms/${roomId}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify({
                     videoTitle: videoTitle || 'Untitled Video',
                     ownerName: ownerName || 'Anonymous',
@@ -971,7 +1108,7 @@ async function shareRoom(ownerName) {
             // Create new room
             const res = await fetch(`${BACKEND_URL}/api/rooms`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify({
                     videoId,
                     videoTitle: videoTitle || 'Untitled Video',
@@ -1182,7 +1319,7 @@ function buildQuizContext(transcript) {
 async function generateQuizQuestions(context) {
     const res = await fetch(`${BACKEND_URL}/api/ai/quiz`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ context })
     });
     if (!res.ok) throw new Error('Quiz generation failed: ' + res.status);
@@ -1376,4 +1513,155 @@ document.querySelectorAll('.tab[data-panel="quiz"]').forEach(tab => {
     tab.addEventListener('click', () => {
         if (!quizState.active && !quizState.questions.length) renderQuizIdle();
     });
+});
+
+// =============================================================================
+// FLASHCARD FEATURE
+// =============================================================================
+let flashcardData = [];
+const flashcardsContainer = document.getElementById('flashcards-container');
+const generateFlashcardsBtn = document.getElementById('generate-flashcards-btn');
+
+// Enable generate button when we have a video  
+function updateFlashcardButtonState() {
+    if (generateFlashcardsBtn) {
+        generateFlashcardsBtn.disabled = !videoId || timestamps.length === 0;
+    }
+}
+
+// Build context from notes (reuses quiz context builder)
+function buildFlashcardContext() {
+    return buildQuizContext();
+}
+
+// Generate flashcards
+async function generateFlashcards() {
+    if (!videoId) { showToast('Open a YouTube video first', 'error'); return; }
+
+    generateFlashcardsBtn.disabled = true;
+    generateFlashcardsBtn.innerHTML = `
+        <div style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></div>
+        Generating flashcards...
+    `;
+    flashcardsContainer.innerHTML = '';
+
+    try {
+        // Try transcript first, fall back to notes
+        let context = '';
+        try {
+            const transcript = await fetchTranscript();
+            if (transcript) context = `VIDEO: ${videoTitle}\n\nTRANSCRIPT:\n${transcript.slice(0, 6000)}`;
+        } catch (_) {}
+
+        if (!context) {
+            context = buildFlashcardContext();
+        }
+
+        if (!context || context.length < 30) {
+            showToast('Not enough content — capture some notes first', 'warn');
+            return;
+        }
+
+        const res = await fetch(`${BACKEND_URL}/api/ai/flashcards`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ context })
+        });
+        if (!res.ok) throw new Error('Flashcard generation failed: ' + res.status);
+        const data = await res.json();
+
+        if (!Array.isArray(data?.cards) || !data.cards.length) throw new Error('No flashcards returned');
+
+        flashcardData = data.cards;
+        renderFlashcards(data.cards, data.title || 'Flashcards');
+        showToast(`${data.cards.length} flashcards created!`, 'success');
+    } catch (err) {
+        showToast('Flashcard generation failed: ' + err.message, 'error');
+    } finally {
+        generateFlashcardsBtn.disabled = !videoId || timestamps.length === 0;
+        generateFlashcardsBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="6" width="20" height="14" rx="2" />
+                <path d="M12 6V2" />
+                <path d="M2 12h20" />
+            </svg>
+            Generate Flashcards from Notes
+        `;
+    }
+}
+
+// Render flashcards
+function renderFlashcards(cards, title) {
+    let currentIdx = 0;
+    const total = cards.length;
+
+    function render() {
+        const card = cards[currentIdx];
+        flashcardsContainer.innerHTML = `
+            <div style="text-align:center;margin-bottom:10px">
+                <div style="font-size:.78rem;font-weight:700;color:var(--text)">${escHtml(title)}</div>
+                <div style="font-size:.65rem;color:var(--muted);margin-top:2px">${currentIdx + 1} / ${total}</div>
+            </div>
+            <div class="flashcard" id="active-flashcard" style="min-height:140px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;position:relative;transition:all .2s">
+                <div style="font-size:.6rem;font-weight:700;color:var(--accent-l);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${escHtml(card.topic || '')}</div>
+                <div id="flashcard-front" style="font-size:.84rem;line-height:1.5;color:var(--text)">${renderMathSimple(card.front)}</div>
+                <div id="flashcard-back" style="display:none;font-size:.82rem;line-height:1.5;color:var(--green)">${renderMathSimple(card.back)}</div>
+                <div style="position:absolute;bottom:8px;right:12px;font-size:.6rem;color:var(--muted)" id="flashcard-hint">Tap to flip</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
+                <button class="btn" id="fc-prev" style="flex:1;justify-content:center;gap:4px;padding:8px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:.75rem" ${currentIdx === 0 ? 'disabled' : ''}>← Prev</button>
+                <button class="btn" id="fc-next" style="flex:1;justify-content:center;gap:4px;padding:8px;background:linear-gradient(135deg,var(--accent),#a855f7);color:#fff;font-size:.75rem;border:none">${currentIdx === total - 1 ? '↻ Restart' : 'Next →'}</button>
+            </div>
+        `;
+
+        // Flip card
+        let flipped = false;
+        document.getElementById('active-flashcard').addEventListener('click', () => {
+            flipped = !flipped;
+            document.getElementById('flashcard-front').style.display = flipped ? 'none' : 'block';
+            document.getElementById('flashcard-back').style.display = flipped ? 'block' : 'none';
+            document.getElementById('flashcard-hint').textContent = flipped ? 'Tap to see question' : 'Tap to flip';
+        });
+
+        // Navigation
+        document.getElementById('fc-prev').addEventListener('click', () => {
+            if (currentIdx > 0) { currentIdx--; render(); }
+        });
+        document.getElementById('fc-next').addEventListener('click', () => {
+            if (currentIdx < total - 1) { currentIdx++; render(); }
+            else { currentIdx = 0; render(); }
+        });
+    }
+
+    render();
+}
+
+// Simple math renderer for flashcards
+function renderMathSimple(text) {
+    if (!text) return '';
+    try {
+        return text.replace(/\$\$(.*?)\$\$/g, (_, tex) => {
+            try { return katex.renderToString(tex, { displayMode: true }); } catch (_) { return `$$${tex}$$`; }
+        }).replace(/\$(.*?)\$/g, (_, tex) => {
+            try { return katex.renderToString(tex, { displayMode: false }); } catch (_) { return `$${tex}$`; }
+        });
+    } catch (_) { return escHtml(text); }
+}
+
+if (generateFlashcardsBtn) {
+    generateFlashcardsBtn.addEventListener('click', generateFlashcards);
+}
+
+// Update flashcard button state whenever data changes
+const _origRenderAllNotes = typeof renderAllNotes === 'function' ? renderAllNotes : null;
+if (_origRenderAllNotes) {
+    const _patchedRenderAllNotes = function() {
+        _origRenderAllNotes.apply(this, arguments);
+        updateFlashcardButtonState();
+    };
+    // Try to wire into the existing flow
+}
+// Also update on the Flashcards tab click
+document.querySelectorAll('.tab[data-panel="flashcards"]').forEach(tab => {
+    tab.addEventListener('click', updateFlashcardButtonState);
 });

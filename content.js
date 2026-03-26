@@ -238,6 +238,11 @@
         const vId = urlParams.get('v') || '';
         if (!vId) return;
 
+        // Get auth token from localStorage
+        const token = localStorage.getItem('np_token') || '';
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         const titleEl = document.querySelector('h1.ytd-watch-metadata yt-formatted-string')
             || document.querySelector('#title h1 yt-formatted-string')
             || document.querySelector('title');
@@ -245,7 +250,7 @@
 
         try {
             // Load existing data from backend
-            const loadRes = await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`);
+            const loadRes = await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`, { headers });
             const existing = await loadRes.json();
             const timestamps = existing?.timestamps || [];
             const aiResponses = existing?.aiResponses || [];
@@ -258,7 +263,7 @@
             // Save back to backend
             await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     videoTitle: ytTitle,
                     timestamps,

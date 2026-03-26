@@ -18,7 +18,8 @@ const aiResponseSchema = new mongoose.Schema({
 }, { _id: false });
 
 const videoSchema = new mongoose.Schema({
-    videoId: { type: String, required: true, unique: true, index: true },
+    videoId: { type: String, required: true, index: true },
+    userId: { type: String, required: true, index: true },
     videoTitle: { type: String, default: '' },
     timestamps: [timestampSchema],
     aiResponses: [aiResponseSchema],
@@ -26,5 +27,8 @@ const videoSchema = new mongoose.Schema({
     sharedRoomId: { type: String, default: '' },
     savedAt: { type: Number, default: Date.now }
 }, { timestamps: true });
+
+// Compound unique index — each user has their own copy per video
+videoSchema.index({ videoId: 1, userId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Video', videoSchema);

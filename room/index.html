@@ -268,9 +268,10 @@
         '<header class="hdr"><div class="hdr-left"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div><span class="brand">NOTEPILOT</span></div><span class="share-pill">Shared room</span></header>' +
         '<div class="meta-bar"><div class="meta-title">' + escHtml(meta.videoTitle || 'Study Notes') + '</div><div class="meta-sub">' + statLine + '</div></div>' +
         timelineHtml +
-        '<div class="room-tabs"><button class="room-tab active" data-tab="notes">📝 Notes</button><button class="room-tab" data-tab="quiz">🧠 Quiz</button></div>' +
+        '<div class="room-tabs"><button class="room-tab active" data-tab="notes">📝 Notes</button><button class="room-tab" data-tab="quiz">🧠 Quiz</button><button class="room-tab" data-tab="flashcards">🃏 Cards</button></div>' +
         '<div class="room-panel active" id="panel-notes"><div class="notes-section page"><div class="section-heading">Captured Notes</div>' + notesHtml + '</div></div>' +
-        '<div class="room-panel" id="panel-quiz"><div class="quiz-section page" id="quiz-area"></div></div>';
+        '<div class="room-panel" id="panel-quiz"><div class="quiz-section page" id="quiz-area"></div></div>' +
+        '<div class="room-panel" id="panel-flashcards"><div class="page" style="padding:16px 20px"><button class="btn-create-quiz" id="generate-room-flashcards" style="margin-bottom:12px">🃏 Generate Flashcards from Notes</button><div id="room-flashcard-list"></div><div id="room-flashcard-active"></div></div></div>';
 
       // Wire tabs
       document.querySelectorAll('.room-tab').forEach(tab => {
@@ -280,6 +281,7 @@
           tab.classList.add('active');
           document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
           if (tab.dataset.tab === 'quiz') renderQuizList();
+          if (tab.dataset.tab === 'flashcards') renderFlashcardList();
         });
       });
 
@@ -494,6 +496,134 @@
         renderRoomQuizQuestion(0);
       });
       document.getElementById('qr-back').addEventListener('click', renderQuizList);
+    }
+
+    // ============ FLASHCARDS ============
+    let roomFlashcardSets = [];
+
+    async function renderFlashcardList() {
+      const area = document.getElementById('room-flashcard-list');
+      const active = document.getElementById('room-flashcard-active');
+      if (!area) return;
+      active.innerHTML = '';
+
+      try {
+        const sets = await apiGet('/api/rooms/' + ROOM_ID + '/flashcards');
+        roomFlashcardSets = sets || [];
+      } catch (_) { roomFlashcardSets = []; }
+
+      if (!roomFlashcardSets.length) {
+        area.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.75rem;padding:20px 0">No flashcard sets yet. Generate some!</div>';
+      } else {
+        area.innerHTML = roomFlashcardSets.map(s =>
+          '<div class="quiz-list-item" data-setid="' + s.setId + '"><div class="quiz-list-info"><h4>' + escHtml(s.title) + '</h4><span>' + s.cardCount + ' cards · by ' + escHtml(s.createdBy) + '</span></div><span class="quiz-list-badge">' + s.cardCount + '</span></div>'
+        ).join('');
+        area.querySelectorAll('.quiz-list-item').forEach(el => {
+          el.addEventListener('click', () => openFlashcardSet(el.dataset.setid));
+        });
+      }
+
+      // Generate button
+      const genBtn = document.getElementById('generate-room-flashcards');
+      if (genBtn) {
+        genBtn.onclick = async () => {
+          genBtn.disabled = true;
+          genBtn.textContent = '⏳ Generating...';
+          try {
+            const notes = roomData?.notes || [];
+            let ctx = 'VIDEO: ' + (roomData?.meta?.videoTitle || '') + '\n\n';
+            notes.forEach(n => {
+              ctx += '[' + (n.timestamp || '') + '] ';
+              if (n.note) ctx += n.note + '. ';
+              if (n.ocrText) ctx += 'Slide: ' + n.ocrText.slice(0, 300) + '. ';
+              ctx += '\n';
+            });
+            const res = await fetch(API_URL + '/api/ai/flashcards', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ context: ctx })
+            });
+            if (!res.ok) throw new Error('Generation failed');
+            const data = await res.json();
+            if (!data?.cards?.length) throw new Error('No cards returned');
+
+            // Prompt for name
+            let name = getDisplayName();
+            if (!name) { name = prompt('Your name:') || 'Anonymous'; setDisplayName(name); }
+
+            // Save to room
+            await apiPost('/api/rooms/' + ROOM_ID + '/flashcards', {
+              title: data.title || 'Flashcards',
+              cards: data.cards,
+              createdBy: name
+            });
+
+            toast(data.cards.length + ' flashcards created!', 'success');
+            renderFlashcardList();
+          } catch (err) {
+            toast('Failed: ' + err.message.slice(0, 60), 'error');
+          } finally {
+            genBtn.disabled = false;
+            genBtn.textContent = '🃏 Generate Flashcards from Notes';
+          }
+        };
+      }
+    }
+
+    async function openFlashcardSet(setId) {
+      const area = document.getElementById('room-flashcard-active');
+      if (!area) return;
+      area.innerHTML = '<div class="quiz-loading"><div class="quiz-spinner"></div><div style="font-size:.75rem;color:var(--muted)">Loading flashcards...</div></div>';
+
+      try {
+        const set = await apiGet('/api/rooms/' + ROOM_ID + '/flashcards/' + setId);
+        if (!set || !set.cards || !set.cards.length) throw new Error('Empty set');
+        document.getElementById('room-flashcard-list').style.display = 'none';
+        document.getElementById('generate-room-flashcards').style.display = 'none';
+        renderRoomFlashcards(set.cards, set.title || 'Flashcards');
+      } catch (err) {
+        area.innerHTML = '<div style="color:var(--red);font-size:.75rem;padding:20px;text-align:center">' + escHtml(err.message) + '</div>';
+      }
+    }
+
+    function renderRoomFlashcards(cards, title) {
+      const area = document.getElementById('room-flashcard-active');
+      let idx = 0;
+      const total = cards.length;
+
+      function render() {
+        const c = cards[idx];
+        area.innerHTML =
+          '<button class="quiz-back-btn" id="fc-back">← Back to list</button>' +
+          '<div style="text-align:center;margin-bottom:10px"><div style="font-size:.82rem;font-weight:700;color:var(--text)">' + escHtml(title) + '</div><div style="font-size:.65rem;color:var(--muted);margin-top:2px">' + (idx + 1) + ' / ' + total + '</div></div>' +
+          '<div class="quiz-q-card" id="fc-card" style="cursor:pointer;min-height:120px;position:relative">' +
+            '<div class="quiz-q-topic">' + escHtml(c.topic || '') + '</div>' +
+            '<div id="fc-front" class="quiz-q-text">' + renderMath(c.front) + '</div>' +
+            '<div id="fc-back-text" style="display:none;font-size:.82rem;line-height:1.5;color:var(--green)">' + renderMath(c.back) + '</div>' +
+            '<div style="position:absolute;bottom:8px;right:12px;font-size:.6rem;color:var(--muted)" id="fc-hint">Tap to flip</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px;margin-top:8px">' +
+            '<button class="btn-quiz-retry" id="fc-prev" style="flex:1" ' + (idx === 0 ? 'disabled' : '') + '>← Prev</button>' +
+            '<button class="btn-quiz-new" id="fc-next" style="flex:1">' + (idx === total - 1 ? '↻ Restart' : 'Next →') + '</button>' +
+          '</div>';
+
+        let flipped = false;
+        document.getElementById('fc-card').addEventListener('click', () => {
+          flipped = !flipped;
+          document.getElementById('fc-front').style.display = flipped ? 'none' : 'block';
+          document.getElementById('fc-back-text').style.display = flipped ? 'block' : 'none';
+          document.getElementById('fc-hint').textContent = flipped ? 'Tap to see question' : 'Tap to flip';
+        });
+        document.getElementById('fc-prev').addEventListener('click', () => { if (idx > 0) { idx--; render(); } });
+        document.getElementById('fc-next').addEventListener('click', () => { if (idx < total - 1) { idx++; render(); } else { idx = 0; render(); } });
+        document.getElementById('fc-back').addEventListener('click', () => {
+          area.innerHTML = '';
+          document.getElementById('room-flashcard-list').style.display = '';
+          document.getElementById('generate-room-flashcards').style.display = '';
+          renderFlashcardList();
+        });
+      }
+      render();
     }
 
     // ============ MAIN ============

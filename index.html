@@ -15,6 +15,38 @@
 <body>
     <div id="toasts"></div>
 
+    <!-- Login / Register Overlay -->
+    <div id="auth-overlay" class="auth-overlay" style="display:none">
+        <div class="auth-box">
+            <div class="logo" style="width:40px;height:40px;border-radius:10px;margin:0 auto 10px">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                    <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                </svg>
+            </div>
+            <div class="brand" style="text-align:center;font-size:1rem;margin-bottom:14px">NOTEPILOT</div>
+            <h3 id="auth-title" style="text-align:center;font-size:.88rem;color:var(--text);margin-bottom:12px">Sign in to continue</h3>
+            <div id="auth-error" style="display:none;font-size:.72rem;color:var(--red);background:rgba(239,68,68,.08);padding:6px 10px;border-radius:6px;margin-bottom:10px;text-align:center"></div>
+            <input type="text" id="auth-name" class="input" placeholder="Your name" style="display:none;margin-bottom:8px">
+            <input type="email" id="auth-email" class="input" placeholder="Email" style="margin-bottom:8px">
+            <input type="password" id="auth-password" class="input" placeholder="Password" style="margin-bottom:10px">
+            <button id="auth-submit-btn" class="btn btn-export" style="width:100%;justify-content:center;margin-bottom:8px">Sign In</button>
+            <div style="text-align:center;font-size:.7rem;color:var(--muted);margin-bottom:10px">
+                <span id="auth-toggle-text">Don't have an account?</span>
+                <a href="#" id="auth-toggle-link" style="color:var(--accent-l);text-decoration:none;font-weight:600"> Register</a>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <div style="flex:1;height:1px;background:var(--border)"></div>
+                <span style="font-size:.65rem;color:var(--muted)">OR</span>
+                <div style="flex:1;height:1px;background:var(--border)"></div>
+            </div>
+            <button id="google-signin-btn" class="btn" style="width:100%;justify-content:center;gap:8px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:.78rem;padding:8px">
+                <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Sign in with Google
+            </button>
+        </div>
+    </div>
+
     <!-- Header -->
     <header class="hdr">
         <div class="hdr-left">
@@ -26,9 +58,13 @@
             </div>
             <span class="brand">NOTEPILOT</span>
         </div>
-        <div id="status" class="status offline">
-            <span class="status-dot"></span>
-            <span id="status-text">No video</span>
+        <div style="display:flex;align-items:center;gap:8px">
+            <div id="user-info" style="display:none;font-size:.68rem;color:var(--text2);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+            <button id="logout-btn" class="btn" style="display:none;font-size:.62rem;padding:3px 8px;background:var(--card);border:1px solid var(--border);color:var(--muted)" title="Logout">↩</button>
+            <div id="status" class="status offline">
+                <span class="status-dot"></span>
+                <span id="status-text">No video</span>
+            </div>
         </div>
     </header>
 
@@ -78,6 +114,14 @@
             Quiz
             <span id="quiz-badge" class="badge" style="display:none;background:var(--amber)">!</span>
         </button>
+        <button class="tab" data-panel="flashcards">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="6" width="20" height="14" rx="2" />
+                <path d="M12 6V2" />
+                <path d="M2 12h20" />
+            </svg>
+            Cards
+        </button>
         <button class="tab" data-panel="chat">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -104,6 +148,21 @@
     <!-- Quiz Panel -->
     <main id="panel-quiz" class="panel">
         <div id="quiz-container" class="quiz-container"></div>
+    </main>
+
+    <!-- Flashcards Panel -->
+    <main id="panel-flashcards" class="panel">
+        <div class="scroll" style="padding:12px 16px">
+            <button id="generate-flashcards-btn" class="btn btn-export" style="width:100%;justify-content:center;margin-bottom:12px;gap:6px" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="6" width="20" height="14" rx="2" />
+                    <path d="M12 6V2" />
+                    <path d="M2 12h20" />
+                </svg>
+                Generate Flashcards from Notes
+            </button>
+            <div id="flashcards-container"></div>
+        </div>
     </main>
 
     <!-- Chat Panel -->

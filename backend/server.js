@@ -2,13 +2,17 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 
+const User = require('./models/User');
 const Video = require('./models/Video');
 const Room = require('./models/Room');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'notepilot-dev-secret-change-in-production';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_KEY = process.env.GROQ_API_KEY || '';
 const MODEL_CHAT = 'llama-3.3-70b-versatile';
@@ -18,17 +22,148 @@ const MODEL_VISION = 'meta-llama/llama-4-scout-17b-16e-instruct';
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// ── JWT helpers ──
+function signToken(userId) {
+    return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+}
+
+function requireAuth(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized — no token' });
+    }
+    try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        req.userId = decoded.userId;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Unauthorized — invalid token' });
+    }
+}
+
+// Optional auth — sets req.userId if token present, but doesn't block
+function optionalAuth(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+            const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+            req.userId = decoded.userId;
+        } catch (_) { /* ignore */ }
+    }
+    next();
+}
+
 // ── Health check ──
 app.get('/', (req, res) => res.json({ status: 'NotePilot API running', time: new Date().toISOString() }));
 
 // =============================================================================
-// VIDEO DATA (replaces chrome.storage.local)
+// AUTH ENDPOINTS
 // =============================================================================
 
-// Get saved data for a video
-app.get('/api/videos/:videoId', async (req, res) => {
+// Register with email/password
+app.post('/api/auth/register', async (req, res) => {
     try {
-        const doc = await Video.findOne({ videoId: req.params.videoId });
+        const { email, password, name } = req.body;
+        if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+        if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+        const existing = await User.findOne({ email: email.toLowerCase() });
+        if (existing) return res.status(409).json({ error: 'Email already registered' });
+
+        const user = await User.create({ email: email.toLowerCase(), password, name: name || 'Student' });
+        const token = signToken(user._id.toString());
+        res.json({ token, user: { id: user._id, email: user.email, name: user.name, avatar: user.avatar } });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Login with email/password
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (!user) return res.status(401).json({ error: 'Invalid email or password' });
+
+        const match = await user.comparePassword(password);
+        if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+
+        const token = signToken(user._id.toString());
+        res.json({ token, user: { id: user._id, email: user.email, name: user.name, avatar: user.avatar } });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Google auth — verify Google token and create/login user
+app.post('/api/auth/google', async (req, res) => {
+    try {
+        const { token: googleToken } = req.body;
+        if (!googleToken) return res.status(400).json({ error: 'Google token required' });
+
+        // Verify the Google token
+        const { OAuth2Client } = require('google-auth-library');
+        const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+        let payload;
+        try {
+            const ticket = await client.verifyIdToken({
+                idToken: googleToken,
+                audience: GOOGLE_CLIENT_ID
+            });
+            payload = ticket.getPayload();
+        } catch (err) {
+            return res.status(401).json({ error: 'Invalid Google token' });
+        }
+
+        const { sub: googleId, email, name, picture } = payload;
+
+        // Find existing user by googleId or email
+        let user = await User.findOne({ $or: [{ googleId }, { email: email.toLowerCase() }] });
+
+        if (user) {
+            // Update Google info if needed
+            if (!user.googleId) user.googleId = googleId;
+            if (picture && !user.avatar) user.avatar = picture;
+            if (name && user.name === 'Student') user.name = name;
+            await user.save();
+        } else {
+            user = await User.create({
+                email: email.toLowerCase(),
+                name: name || 'Student',
+                googleId,
+                avatar: picture || ''
+            });
+        }
+
+        const jwtToken = signToken(user._id.toString());
+        res.json({ token: jwtToken, user: { id: user._id, email: user.email, name: user.name, avatar: user.avatar } });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get current user
+app.get('/api/auth/me', requireAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).select('-password');
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        res.json({ id: user._id, email: user.email, name: user.name, avatar: user.avatar });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// =============================================================================
+// VIDEO DATA (per-user)
+// =============================================================================
+
+// Get saved data for a video (for current user)
+app.get('/api/videos/:videoId', requireAuth, async (req, res) => {
+    try {
+        const doc = await Video.findOne({ videoId: req.params.videoId, userId: req.userId });
         if (!doc) return res.json(null);
         res.json(doc);
     } catch (err) {
@@ -36,14 +171,15 @@ app.get('/api/videos/:videoId', async (req, res) => {
     }
 });
 
-// Save / update data for a video
-app.put('/api/videos/:videoId', async (req, res) => {
+// Save / update data for a video (for current user)
+app.put('/api/videos/:videoId', requireAuth, async (req, res) => {
     try {
         const { videoTitle, timestamps, aiResponses, pdfTitleVal, sharedRoomId } = req.body;
         const doc = await Video.findOneAndUpdate(
-            { videoId: req.params.videoId },
+            { videoId: req.params.videoId, userId: req.userId },
             {
                 videoId: req.params.videoId,
+                userId: req.userId,
                 videoTitle: videoTitle || '',
                 timestamps: timestamps || [],
                 aiResponses: aiResponses || [],
@@ -60,11 +196,11 @@ app.put('/api/videos/:videoId', async (req, res) => {
 });
 
 // =============================================================================
-// ROOMS (replaces Firebase Realtime DB)
+// ROOMS (shared — no per-user isolation, but auth required to create)
 // =============================================================================
 
 // Create a room
-app.post('/api/rooms', async (req, res) => {
+app.post('/api/rooms', requireAuth, async (req, res) => {
     try {
         const { videoId, videoTitle, ownerName, notes, summary } = req.body;
         const roomId = uuidv4().slice(0, 10);
@@ -81,6 +217,7 @@ app.post('/api/rooms', async (req, res) => {
             notes: notes || [],
             annotations: [],
             quizzes: [],
+            flashcardSets: [],
             summary: summary || []
         });
         res.json({ success: true, roomId, room });
@@ -89,7 +226,7 @@ app.post('/api/rooms', async (req, res) => {
     }
 });
 
-// Get room data
+// Get room data (public — anyone with the link can view)
 app.get('/api/rooms/:roomId', async (req, res) => {
     try {
         const room = await Room.findOne({ roomId: req.params.roomId });
@@ -101,7 +238,7 @@ app.get('/api/rooms/:roomId', async (req, res) => {
 });
 
 // Update room (re-upload notes from extension)
-app.patch('/api/rooms/:roomId', async (req, res) => {
+app.patch('/api/rooms/:roomId', requireAuth, async (req, res) => {
     try {
         const { videoTitle, ownerName, notes, summary } = req.body;
         const update = { 'meta.updatedAt': Date.now() };
@@ -126,13 +263,12 @@ app.patch('/api/rooms/:roomId', async (req, res) => {
 });
 
 // Push a single note (live sync from extension)
-app.put('/api/rooms/:roomId/notes/:noteIndex', async (req, res) => {
+app.put('/api/rooms/:roomId/notes/:noteIndex', requireAuth, async (req, res) => {
     try {
         const room = await Room.findOne({ roomId: req.params.roomId });
         if (!room) return res.status(404).json({ error: 'Room not found' });
 
         const idx = parseInt(req.params.noteIndex);
-        // Extend notes array if needed
         while (room.notes.length <= idx) room.notes.push({});
         room.notes[idx] = { ...room.notes[idx]?.toObject?.() || {}, ...req.body };
         room.meta.updatedAt = Date.now();
@@ -144,8 +280,8 @@ app.put('/api/rooms/:roomId/notes/:noteIndex', async (req, res) => {
     }
 });
 
-// Patch a note's text fields (live sync — no image recompression)
-app.patch('/api/rooms/:roomId/notes/:noteIndex', async (req, res) => {
+// Patch a note's text fields
+app.patch('/api/rooms/:roomId/notes/:noteIndex', requireAuth, async (req, res) => {
     try {
         const room = await Room.findOne({ roomId: req.params.roomId });
         if (!room) return res.status(404).json({ error: 'Room not found' });
@@ -166,10 +302,9 @@ app.patch('/api/rooms/:roomId/notes/:noteIndex', async (req, res) => {
 });
 
 // =============================================================================
-// ANNOTATIONS
+// ANNOTATIONS (public read, auth to write)
 // =============================================================================
 
-// Add an annotation to a note
 app.post('/api/rooms/:roomId/annotations', async (req, res) => {
     try {
         const { noteIndex, name, text, sessionId } = req.body;
@@ -190,7 +325,6 @@ app.post('/api/rooms/:roomId/annotations', async (req, res) => {
     }
 });
 
-// Get annotations (optionally filtered by noteIndex)
 app.get('/api/rooms/:roomId/annotations', async (req, res) => {
     try {
         const room = await Room.findOne({ roomId: req.params.roomId });
@@ -200,7 +334,6 @@ app.get('/api/rooms/:roomId/annotations', async (req, res) => {
         if (req.query.noteIndex !== undefined) {
             anns = anns.filter(a => a.noteIndex === parseInt(req.query.noteIndex));
         }
-        // Group by noteIndex for easy consumption
         const grouped = {};
         anns.forEach(a => {
             const key = String(a.noteIndex);
@@ -217,7 +350,6 @@ app.get('/api/rooms/:roomId/annotations', async (req, res) => {
 // QUIZZES
 // =============================================================================
 
-// Save a quiz to a room
 app.post('/api/rooms/:roomId/quiz', async (req, res) => {
     try {
         const { title, questions, createdBy } = req.body;
@@ -239,12 +371,10 @@ app.post('/api/rooms/:roomId/quiz', async (req, res) => {
     }
 });
 
-// Get all quizzes for a room
 app.get('/api/rooms/:roomId/quizzes', async (req, res) => {
     try {
         const room = await Room.findOne({ roomId: req.params.roomId });
         if (!room) return res.status(404).json({ error: 'Room not found' });
-        // Return quizzes without full questions for list view
         const list = (room.quizzes || []).map(q => ({
             quizId: q.quizId,
             title: q.title,
@@ -258,7 +388,6 @@ app.get('/api/rooms/:roomId/quizzes', async (req, res) => {
     }
 });
 
-// Get a specific quiz
 app.get('/api/rooms/:roomId/quiz/:quizId', async (req, res) => {
     try {
         const room = await Room.findOne({ roomId: req.params.roomId });
@@ -266,6 +395,63 @@ app.get('/api/rooms/:roomId/quiz/:quizId', async (req, res) => {
         const quiz = (room.quizzes || []).find(q => q.quizId === req.params.quizId);
         if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
         res.json(quiz);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// =============================================================================
+// FLASHCARDS
+// =============================================================================
+
+// Save flashcard set to room
+app.post('/api/rooms/:roomId/flashcards', async (req, res) => {
+    try {
+        const { title, cards, createdBy } = req.body;
+        const room = await Room.findOne({ roomId: req.params.roomId });
+        if (!room) return res.status(404).json({ error: 'Room not found' });
+
+        const setId = uuidv4().slice(0, 8);
+        room.flashcardSets.push({
+            setId,
+            title: title || 'Flashcards',
+            cards: cards || [],
+            createdBy: createdBy || 'Anonymous',
+            createdAt: Date.now()
+        });
+        await room.save();
+        res.json({ success: true, setId });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get all flashcard sets for a room
+app.get('/api/rooms/:roomId/flashcards', async (req, res) => {
+    try {
+        const room = await Room.findOne({ roomId: req.params.roomId });
+        if (!room) return res.status(404).json({ error: 'Room not found' });
+        const list = (room.flashcardSets || []).map(s => ({
+            setId: s.setId,
+            title: s.title,
+            cardCount: s.cards.length,
+            createdBy: s.createdBy,
+            createdAt: s.createdAt
+        }));
+        res.json(list);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get a specific flashcard set
+app.get('/api/rooms/:roomId/flashcards/:setId', async (req, res) => {
+    try {
+        const room = await Room.findOne({ roomId: req.params.roomId });
+        if (!room) return res.status(404).json({ error: 'Room not found' });
+        const set = (room.flashcardSets || []).find(s => s.setId === req.params.setId);
+        if (!set) return res.status(404).json({ error: 'Flashcard set not found' });
+        res.json(set);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -300,8 +486,8 @@ async function proxyGroq(messages, opts = {}) {
     return text;
 }
 
-// Chat AI
-app.post('/api/ai/chat', async (req, res) => {
+// Chat AI (auth required)
+app.post('/api/ai/chat', requireAuth, async (req, res) => {
     try {
         const { messages, temperature, max_tokens } = req.body;
         const text = await proxyGroq(messages, { model: MODEL_CHAT, temperature, max_tokens });
@@ -311,8 +497,8 @@ app.post('/api/ai/chat', async (req, res) => {
     }
 });
 
-// Vision AI (OCR)
-app.post('/api/ai/vision', async (req, res) => {
+// Vision AI (auth required)
+app.post('/api/ai/vision', requireAuth, async (req, res) => {
     try {
         const { messages, temperature, max_tokens } = req.body;
         const text = await proxyGroq(messages, { model: MODEL_VISION, temperature, max_tokens });
@@ -322,13 +508,29 @@ app.post('/api/ai/vision', async (req, res) => {
     }
 });
 
-// Quiz generation AI
+// Quiz generation AI (public — used from room viewer)
 app.post('/api/ai/quiz', async (req, res) => {
     try {
         const { context } = req.body;
         const raw = await proxyGroq([
             { role: 'system', content: 'You are an expert quiz generator. Respond ONLY with valid JSON — no markdown fences, no explanation.' },
             { role: 'user', content: `Generate exactly 10 multiple-choice questions from this video content.\n\n${context}\n\nReturn ONLY this JSON:\n{"quizTitle":"Short title","questions":[{"topic":"2-3 word tag","difficulty":"easy|medium|hard","question":"Text ≤25 words","options":["A","B","C","D"],"correctIndex":0,"explanation":"1-2 sentences.","timestampHint":"e.g. 3:45 or null"}]}\n\nRules: exactly 10 questions (3 easy,5 medium,2 hard); cover the FULL video; plausible distractors; if math appears include 2 equation questions; correctIndex is 0-based.` }
+        ], { temperature: 0.35, max_tokens: 3000 });
+        const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+        const data = JSON.parse(clean);
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Flashcard generation AI (public — used from both extension and room)
+app.post('/api/ai/flashcards', async (req, res) => {
+    try {
+        const { context } = req.body;
+        const raw = await proxyGroq([
+            { role: 'system', content: 'You are an expert flashcard creator for students. Respond ONLY with valid JSON — no markdown fences, no explanation.' },
+            { role: 'user', content: `Generate 15 study flashcards from this video content.\n\n${context}\n\nReturn ONLY this JSON:\n{"title":"Short descriptive title","cards":[{"front":"Question or term","back":"Answer or definition","topic":"2-3 word tag"}]}\n\nRules: exactly 15 cards; mix of definitions, concepts, and application questions; cover the FULL content; front should be concise (≤20 words); back should be clear but brief (≤40 words); use LaTeX for math.` }
         ], { temperature: 0.35, max_tokens: 3000 });
         const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
         const data = JSON.parse(clean);

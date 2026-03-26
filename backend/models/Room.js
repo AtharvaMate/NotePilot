@@ -26,6 +26,20 @@ const quizSchema = new mongoose.Schema({
     createdAt: { type: Number, default: Date.now }
 }, { _id: false });
 
+const flashcardSchema = new mongoose.Schema({
+    front: { type: String, required: true },
+    back: { type: String, required: true },
+    topic: { type: String, default: '' }
+}, { _id: false });
+
+const flashcardSetSchema = new mongoose.Schema({
+    setId: { type: String, required: true },
+    title: { type: String, default: 'Flashcards' },
+    cards: [flashcardSchema],
+    createdBy: { type: String, default: 'Anonymous' },
+    createdAt: { type: Number, default: Date.now }
+}, { _id: false });
+
 const noteSchema = new mongoose.Schema({
     id: String,
     timestamp: String,
@@ -49,6 +63,7 @@ const roomSchema = new mongoose.Schema({
     notes: [noteSchema],
     annotations: [annotationSchema],
     quizzes: [quizSchema],
+    flashcardSets: [flashcardSetSchema],
     summary: { type: mongoose.Schema.Types.Mixed, default: [] }
 }, { timestamps: true });
 
