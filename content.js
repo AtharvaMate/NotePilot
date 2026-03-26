@@ -231,7 +231,7 @@
     }
 
     // Backend URL — must match config.js
-    const CONTENT_BACKEND_URL = 'http://localhost:3001';
+    const CONTENT_BACKEND_URL = 'https://notepilot-3ntc.onrender.com';
 
     async function saveCapture(snapshot, label, videoTime, note) {
         const urlParams = new URLSearchParams(window.location.search);

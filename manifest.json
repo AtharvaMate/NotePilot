@@ -10,7 +10,8 @@
     "host_permissions": [
         "https://www.youtube.com/*",
         "https://noembed.com/*",
-        "http://localhost:3001/*"
+        "http://localhost:3001/*",
+        "https://notepilot-3ntc.onrender.com/*"
     ],
     "background": {
         "service_worker": "background.js"
