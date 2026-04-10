@@ -90,11 +90,6 @@ const authToggleLink = document.getElementById('auth-toggle-link');
 const googleSignInBtn = document.getElementById('google-signin-btn');
 const userInfoEl = document.getElementById('user-info');
 const logoutBtn = document.getElementById('logout-btn');
-const historyBtn = document.getElementById('history-btn');
-const historyModalOverlay = document.getElementById('history-modal-overlay');
-const historyModalClose = document.getElementById('history-modal-close');
-const historyList = document.getElementById('history-list');
-
 let authMode = 'login'; // 'login' or 'register'
 
 // ============ AUTH UI ============
@@ -179,7 +174,6 @@ function showUserInfo() {
         userInfoEl.textContent = currentUser.name || currentUser.email;
         userInfoEl.style.display = 'block';
         logoutBtn.style.display = 'inline-flex';
-        historyBtn.style.display = 'inline-flex';
     }
 }
 logoutBtn.addEventListener('click', () => {
@@ -192,7 +186,6 @@ logoutBtn.addEventListener('click', () => {
     }
     userInfoEl.style.display = 'none';
     logoutBtn.style.display = 'none';
-    historyBtn.style.display = 'none';
     showAuthOverlay();
 });
 
@@ -1742,45 +1735,4 @@ if (_origRenderAllNotes) {
 // Also update on the Flashcards tab click
 document.querySelectorAll('.tab[data-panel="flashcards"]').forEach(tab => {
     tab.addEventListener('click', updateFlashcardButtonState);
-});
-// ============ HISTORY UI ============
-historyBtn.addEventListener('click', async () => {
-    historyModalOverlay.style.display = 'flex';
-    historyList.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.8rem;padding:20px">Loading history...</div>';
-    
-    try {
-        const res = await fetch(`${BACKEND_URL}/api/videos`, { headers: authHeaders() });
-        if (!res.ok) throw new Error('Failed to load history');
-        const history = await res.json();
-        
-        if (!history || history.length === 0) {
-            historyList.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.8rem;padding:20px">No notes captured yet.</div>';
-            return;
-        }
-        
-        let html = '';
-        history.forEach(item => {
-            const dateStr = new Date(item.savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-            html += `
-                <div class="history-item">
-                    <div class="history-title" title="${escHtml(item.videoTitle)}">${escHtml(item.videoTitle)}</div>
-                    <div class="history-meta">
-                        <span>📅 ${dateStr}</span>
-                        <span>📝 ${item.noteCount} note${item.noteCount !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div class="history-actions">
-                        <a href="https://www.youtube.com/watch?v=${item.videoId}" target="_blank" class="history-btn-link">Watch Video</a>
-                        ${item.sharedRoomId ? `<a href="${buildRoomUrl(item.sharedRoomId)}" target="_blank" class="history-btn-link">Shared Room</a>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-        historyList.innerHTML = html;
-    } catch (err) {
-        historyList.innerHTML = `<div style="text-align:center;color:var(--red);font-size:.8rem;padding:20px">${escHtml(err.message)}</div>`;
-    }
-});
-
-historyModalClose.addEventListener('click', () => {
-    historyModalOverlay.style.display = 'none';
 });

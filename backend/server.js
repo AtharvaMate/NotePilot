@@ -160,28 +160,6 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
 // VIDEO DATA (per-user)
 // =============================================================================
 
-// Get history of all saved videos for current user
-app.get('/api/videos', requireAuth, async (req, res) => {
-    try {
-        const docs = await Video.find({ userId: req.userId })
-            .select('videoId videoTitle savedAt timestamps sharedRoomId')
-            .sort({ savedAt: -1 })
-            .lean();
-        
-        const history = docs.map(doc => ({
-            videoId: doc.videoId,
-            videoTitle: doc.videoTitle || 'Untitled Video',
-            savedAt: doc.savedAt,
-            noteCount: (doc.timestamps || []).length,
-            sharedRoomId: doc.sharedRoomId
-        }));
-        
-        res.json(history);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
 // Get saved data for a video (for current user)
 app.get('/api/videos/:videoId', requireAuth, async (req, res) => {
     try {
