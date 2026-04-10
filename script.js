@@ -254,6 +254,8 @@ async function saveData() {
                 sharedRoomId
             })
         });
+        // Keep shared room in sync (debounced to avoid excessive calls)
+        debouncedSyncAllNotesToRoom();
     } catch (e) { console.error('Save error:', e); }
 }
 
@@ -584,7 +586,9 @@ function renderNotes() {
     notesList.querySelectorAll('.cap-del').forEach(btn => {
         btn.addEventListener('click', async () => {
             timestamps = timestamps.filter(t => t.id !== btn.dataset.id);
-            renderNotes(); updateExport(); await saveData(); showToast('Deleted', 'info');
+            renderNotes(); updateExport(); await saveData();
+            await syncAllNotesToRoom();  // full re-sync after deletion
+            showToast('Deleted', 'info');
         });
     });
     notesList.querySelectorAll('.cap-note').forEach(ta => {
@@ -1013,6 +1017,42 @@ async function syncNoteTextToRoom(ts) {
     }
 }
 
+// Full re-sync: replaces the entire notes array in the room (guards against index drift)
+async function syncAllNotesToRoom() {
+    if (!sharedRoomId || !BACKEND_URL) return;
+    try {
+        const compressedNotes = await Promise.all(timestamps.map(async ts => ({
+            id: ts.id,
+            timestamp: ts.timestamp,
+            videoTime: ts.videoTime,
+            note: ts.note || '',
+            ocrText: ts.ocrText || '',
+            aiExplanation: ts.aiExplanation || '',
+            snapshot: ts.snapshot && ts.snapshot.startsWith('data:') ? await compressSnapshot(ts.snapshot) : (ts.snapshot || '')
+        })));
+
+        await fetch(`${BACKEND_URL}/api/rooms/${sharedRoomId}`, {
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify({
+                videoTitle: videoTitle || 'Untitled Video',
+                notes: compressedNotes
+            })
+        });
+        showRoomSyncToast();
+    } catch (err) {
+        console.warn('[NotePilot] syncAllNotesToRoom failed:', err.message);
+    }
+}
+
+// Debounced full room sync — called from saveData
+let _debouncedRoomSync = null;
+function debouncedSyncAllNotesToRoom() {
+    if (!sharedRoomId || !BACKEND_URL) return;
+    clearTimeout(_debouncedRoomSync);
+    _debouncedRoomSync = setTimeout(() => syncAllNotesToRoom(), 1500);
+}
+
 // Subtle "synced" confirmation — shows once per batch of changes
 let _syncToastTimer = null;
 function showRoomSyncToast() {
@@ -1103,6 +1143,18 @@ async function shareRoom(ownerName) {
 
         let roomId = sharedRoomId;
 
+        // Safety check: re-fetch from backend to prevent duplicate rooms for the same video
+        if (!roomId && videoId) {
+            try {
+                const checkRes = await fetch(`${BACKEND_URL}/api/videos/${videoId}`, { headers: authHeaders() });
+                const checkData = await checkRes.json();
+                if (checkData && checkData.sharedRoomId) {
+                    roomId = checkData.sharedRoomId;
+                    sharedRoomId = roomId;
+                }
+            } catch (_) { /* proceed to create */ }
+        }
+
         if (roomId) {
             // Update existing room
             const res = await fetch(`${BACKEND_URL}/api/rooms/${roomId}`, {
@@ -1163,7 +1215,7 @@ function setupShareModal() {
         const result = document.getElementById('share-result');
         const doButton = document.getElementById('share-do-btn');
 
-        if (nameInput) nameInput.value = localStorage.getItem('np_ownerName') || '';
+        if (nameInput) nameInput.value = localStorage.getItem('np_ownerName') || currentUser?.name || '';
         overlay.style.display = 'flex';
         requestAnimationFrame(() => overlay.classList.add('modal-visible'));
 
@@ -1181,7 +1233,11 @@ function setupShareModal() {
             // First share — reset to upload state
             if (result) result.style.display = 'none';
             if (doButton) { doButton.style.display = ''; doButton.disabled = false; doButton.textContent = 'Upload & Share'; }
-            if (nameInput) nameInput.focus();
+            if (nameInput && nameInput.value) {
+                doButton?.focus();
+            } else if (nameInput) {
+                nameInput.focus();
+            }
         }
     };
     const closeModal = () => {
@@ -1195,7 +1251,7 @@ function setupShareModal() {
     overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
     doBtn?.addEventListener('click', () => {
-        const name = nameInput?.value.trim() || 'Anonymous';
+        const name = nameInput?.value.trim() || currentUser?.name || 'Anonymous';
         localStorage.setItem('np_ownerName', name);
         shareRoom(name);
     });
