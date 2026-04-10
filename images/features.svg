@@ -1,0 +1,63 @@
+<svg width="900" height="180" viewBox="0 0 900 180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a14"/>
+      <stop offset="100%" stop-color="#111122"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="180" fill="url(#fbg)" rx="14"/>
+
+  <text x="450" y="26" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" letter-spacing="2" fill="#505068">FEATURE HIGHLIGHTS</text>
+
+  <!-- Feature 1: AI Quiz -->
+  <rect x="30" y="44" width="170" height="120" rx="10" fill="#161624" stroke="rgba(229,9,20,0.15)" stroke-width="1"/>
+  <circle cx="55" cy="68" r="13" fill="rgba(229,9,20,0.12)"/>
+  <text x="55" y="72" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#E50914">?</text>
+  <text x="74" y="72" font-family="sans-serif" font-size="11" font-weight="700" fill="#e0e0e8">AI Quiz</text>
+  <text x="44" y="92" font-family="sans-serif" font-size="9" fill="#7070a0">10 MCQs from transcript.</text>
+  <text x="44" y="106" font-family="sans-serif" font-size="9" fill="#7070a0">Score ring, explanations,</text>
+  <text x="44" y="120" font-family="sans-serif" font-size="9" fill="#7070a0">difficulty tags, rewatch</text>
+  <text x="44" y="134" font-family="sans-serif" font-size="9" fill="#7070a0">links for wrong answers.</text>
+
+  <!-- Feature 2: Flashcards -->
+  <rect x="215" y="44" width="150" height="120" rx="10" fill="#161624" stroke="rgba(229,9,20,0.15)" stroke-width="1"/>
+  <rect x="238" y="57" width="18" height="13" rx="3" fill="none" stroke="#E50914" stroke-width="1.3" opacity="0.7"/>
+  <line x1="238" y1="63" x2="256" y2="63" stroke="#E50914" stroke-width="1" opacity="0.5"/>
+  <text x="262" y="72" font-family="sans-serif" font-size="11" font-weight="700" fill="#e0e0e8">Flashcards</text>
+  <text x="229" y="92" font-family="sans-serif" font-size="9" fill="#7070a0">15 flip cards generated</text>
+  <text x="229" y="106" font-family="sans-serif" font-size="9" fill="#7070a0">from video. Tap to flip,</text>
+  <text x="229" y="120" font-family="sans-serif" font-size="9" fill="#7070a0">swipe to navigate,</text>
+  <text x="229" y="134" font-family="sans-serif" font-size="9" fill="#7070a0">math rendering.</text>
+
+  <!-- Feature 3: Shared Rooms -->
+  <rect x="380" y="44" width="160" height="120" rx="10" fill="#161624" stroke="rgba(16,185,129,0.15)" stroke-width="1"/>
+  <circle cx="403" cy="62" r="5" fill="none" stroke="#10b981" stroke-width="1.3" opacity="0.6"/>
+  <circle cx="415" cy="72" r="5" fill="none" stroke="#10b981" stroke-width="1.3" opacity="0.6"/>
+  <line x1="407" y1="64" x2="413" y2="70" stroke="#10b981" stroke-width="1" opacity="0.5"/>
+  <text x="426" y="72" font-family="sans-serif" font-size="11" font-weight="700" fill="#e0e0e8">Study Rooms</text>
+  <text x="394" y="92" font-family="sans-serif" font-size="9" fill="#7070a0">Share a live link with</text>
+  <text x="394" y="106" font-family="sans-serif" font-size="9" fill="#7070a0">classmates. Annotations,</text>
+  <text x="394" y="120" font-family="sans-serif" font-size="9" fill="#7070a0">AI quiz &amp; flashcards in</text>
+  <text x="394" y="134" font-family="sans-serif" font-size="9" fill="#7070a0">the shared viewer.</text>
+
+  <!-- Feature 4: Google Auth -->
+  <rect x="555" y="44" width="150" height="120" rx="10" fill="#161624" stroke="rgba(16,185,129,0.15)" stroke-width="1"/>
+  <text x="582" y="72" font-family="sans-serif" font-size="14" fill="#4285F4">G</text>
+  <text x="596" y="72" font-family="sans-serif" font-size="11" font-weight="700" fill="#e0e0e8">Google Login</text>
+  <text x="569" y="92" font-family="sans-serif" font-size="9" fill="#7070a0">One-click OAuth via</text>
+  <text x="569" y="106" font-family="sans-serif" font-size="9" fill="#7070a0">Chrome identity API.</text>
+  <text x="569" y="120" font-family="sans-serif" font-size="9" fill="#7070a0">JWT session, auto user</text>
+  <text x="569" y="134" font-family="sans-serif" font-size="9" fill="#7070a0">creation, avatar sync.</text>
+
+  <!-- Feature 5: History -->
+  <rect x="720" y="44" width="150" height="120" rx="10" fill="#161624" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+  <circle cx="745" cy="64" r="9" fill="none" stroke="#f59e0b" stroke-width="1.3" opacity="0.6"/>
+  <line x1="745" y1="58" x2="745" y2="64" stroke="#f59e0b" stroke-width="1.3" opacity="0.6"/>
+  <line x1="745" y1="64" x2="749" y2="66" stroke="#f59e0b" stroke-width="1.3" opacity="0.6"/>
+  <text x="760" y="72" font-family="sans-serif" font-size="11" font-weight="700" fill="#e0e0e8">History</text>
+  <text x="734" y="92" font-family="sans-serif" font-size="9" fill="#7070a0">All saved notes across</text>
+  <text x="734" y="106" font-family="sans-serif" font-size="9" fill="#7070a0">videos. Search, re-open,</text>
+  <text x="734" y="120" font-family="sans-serif" font-size="9" fill="#7070a0">download PDF, or delete.</text>
+  <text x="734" y="134" font-family="sans-serif" font-size="9" fill="#7070a0">Cloud-synced per user.</text>
+</svg>

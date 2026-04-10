@@ -1,69 +1,93 @@
-<svg width="900" height="220" viewBox="0 0 900 220" xmlns="http://www.w3.org/2000/svg">
+<svg width="900" height="240" viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#07070d"/>
       <stop offset="100%" stop-color="#0d0d1f"/>
     </linearGradient>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#a855f7"/>
+      <stop offset="0%" stop-color="#E50914"/>
+      <stop offset="50%" stop-color="#B81D24"/>
+      <stop offset="100%" stop-color="#E50914"/>
     </linearGradient>
     <linearGradient id="logo-grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#a855f7"/>
+      <stop offset="0%" stop-color="#E50914"/>
+      <stop offset="100%" stop-color="#B81D24"/>
     </linearGradient>
     <filter id="glow">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feGaussianBlur stdDeviation="10" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
   <!-- Background -->
-  <rect width="900" height="220" fill="url(#bg)" rx="16"/>
+  <rect width="900" height="240" fill="url(#bg)" rx="16"/>
 
   <!-- Top accent bar -->
   <rect width="900" height="3" fill="url(#accent)" rx="1"/>
 
   <!-- Subtle grid dots -->
   <pattern id="dots" width="30" height="30" patternUnits="userSpaceOnUse">
-    <circle cx="15" cy="15" r="1" fill="rgba(99,102,241,0.12)"/>
+    <circle cx="15" cy="15" r="1" fill="rgba(229,9,20,0.08)"/>
   </pattern>
-  <rect width="900" height="220" fill="url(#dots)"/>
+  <rect width="900" height="240" fill="url(#dots)"/>
 
   <!-- Glow blob -->
-  <ellipse cx="450" cy="110" rx="200" ry="80" fill="rgba(99,102,241,0.07)" filter="url(#glow)"/>
+  <ellipse cx="450" cy="110" rx="220" ry="90" fill="rgba(229,9,20,0.06)" filter="url(#glow)"/>
 
   <!-- Logo mark -->
-  <rect x="356" y="52" width="44" height="44" rx="12" fill="url(#logo-grad)" opacity="0.95"/>
+  <rect x="356" y="38" width="44" height="44" rx="12" fill="url(#logo-grad)" opacity="0.95"/>
   <!-- graduation cap icon -->
-  <g transform="translate(368, 62)" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(368, 48)" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M1 5l9-4.5 9 4.5-9 4.5z"/>
     <path d="M4.5 6.5v4.5c2.5 2.5 7.5 2.5 10 0V6.5"/>
     <line x1="19" y1="5" x2="19" y2="10"/>
   </g>
 
   <!-- Brand name -->
-  <text x="412" y="82" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="30" font-weight="800" letter-spacing="3" fill="url(#accent)">NOTEPILOT</text>
+  <text x="412" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="30" font-weight="800" letter-spacing="3" fill="url(#accent)">NOTEPILOT</text>
 
   <!-- Tagline -->
-  <text x="450" y="118" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#9090a8">AI-Powered YouTube Study Notes</text>
+  <text x="450" y="104" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#9090a8">AI-Powered YouTube Study Notes — Capture · Learn · Share</text>
 
-  <!-- Pills -->
-  <rect x="224" y="144" width="100" height="26" rx="13" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.25)" stroke-width="1"/>
-  <text x="274" y="161" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#818cf8">Frame Capture</text>
+  <!-- Version pill -->
+  <rect x="390" y="114" width="120" height="22" rx="11" fill="rgba(229,9,20,0.1)" stroke="rgba(229,9,20,0.25)" stroke-width="1"/>
+  <text x="450" y="129" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#E50914">v2.0 — Full Stack</text>
 
-  <rect x="336" y="144" width="76" height="26" rx="13" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.25)" stroke-width="1"/>
-  <text x="374" y="161" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#818cf8">AI OCR</text>
+  <!-- Feature pills row 1 -->
+  <rect x="104" y="152" width="100" height="26" rx="13" fill="rgba(229,9,20,0.1)" stroke="rgba(229,9,20,0.2)" stroke-width="1"/>
+  <text x="154" y="169" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#ff6b6b">Frame Capture</text>
 
-  <rect x="424" y="144" width="94" height="26" rx="13" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.25)" stroke-width="1"/>
-  <text x="471" y="161" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#818cf8">Math Rendering</text>
+  <rect x="216" y="152" width="72" height="26" rx="13" fill="rgba(229,9,20,0.1)" stroke="rgba(229,9,20,0.2)" stroke-width="1"/>
+  <text x="252" y="169" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#ff6b6b">AI OCR</text>
 
-  <rect x="530" y="144" width="84" height="26" rx="13" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.25)" stroke-width="1"/>
-  <text x="572" y="161" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#818cf8">PDF Export</text>
+  <rect x="300" y="152" width="94" height="26" rx="13" fill="rgba(229,9,20,0.1)" stroke="rgba(229,9,20,0.2)" stroke-width="1"/>
+  <text x="347" y="169" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#ff6b6b">AI Chat Tutor</text>
 
-  <rect x="626" y="144" width="68" height="26" rx="13" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.25)" stroke-width="1"/>
-  <text x="660" y="161" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#10b981">Free API</text>
+  <rect x="406" y="152" width="94" height="26" rx="13" fill="rgba(229,9,20,0.1)" stroke="rgba(229,9,20,0.2)" stroke-width="1"/>
+  <text x="453" y="169" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#ff6b6b">AI Quiz Mode</text>
+
+  <rect x="512" y="152" width="88" height="26" rx="13" fill="rgba(229,9,20,0.1)" stroke="rgba(229,9,20,0.2)" stroke-width="1"/>
+  <text x="556" y="169" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#ff6b6b">Flashcards</text>
+
+  <rect x="612" y="152" width="98" height="26" rx="13" fill="rgba(229,9,20,0.1)" stroke="rgba(229,9,20,0.2)" stroke-width="1"/>
+  <text x="661" y="169" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#ff6b6b">Study Rooms</text>
+
+  <rect x="722" y="152" width="84" height="26" rx="13" fill="rgba(229,9,20,0.1)" stroke="rgba(229,9,20,0.2)" stroke-width="1"/>
+  <text x="764" y="169" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#ff6b6b">PDF Export</text>
+
+  <!-- Feature pills row 2 -->
+  <rect x="252" y="188" width="100" height="26" rx="13" fill="rgba(16,185,129,0.08)" stroke="rgba(16,185,129,0.2)" stroke-width="1"/>
+  <text x="302" y="205" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#10b981">Google Login</text>
+
+  <rect x="364" y="188" width="80" height="26" rx="13" fill="rgba(16,185,129,0.08)" stroke="rgba(16,185,129,0.2)" stroke-width="1"/>
+  <text x="404" y="205" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#10b981">MongoDB</text>
+
+  <rect x="456" y="188" width="100" height="26" rx="13" fill="rgba(16,185,129,0.08)" stroke="rgba(16,185,129,0.2)" stroke-width="1"/>
+  <text x="506" y="205" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#10b981">KaTeX Math</text>
+
+  <rect x="568" y="188" width="80" height="26" rx="13" fill="rgba(16,185,129,0.08)" stroke="rgba(16,185,129,0.2)" stroke-width="1"/>
+  <text x="608" y="205" text-anchor="middle" font-family="sans-serif" font-size="10.5" font-weight="600" fill="#10b981">Groq AI</text>
 
   <!-- Bottom accent -->
-  <rect y="217" width="900" height="3" fill="url(#accent)" rx="1"/>
+  <rect y="237" width="900" height="3" fill="url(#accent)" rx="1"/>
 </svg>
