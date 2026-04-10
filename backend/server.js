@@ -208,21 +208,24 @@ app.get('/api/videos/:videoId', requireAuth, async (req, res) => {
 });
 
 // Save / update data for a video (for current user)
+// Uses $set so only provided fields are updated — missing fields are preserved.
 app.put('/api/videos/:videoId', requireAuth, async (req, res) => {
     try {
-        const { videoTitle, timestamps, aiResponses, pdfTitleVal, sharedRoomId } = req.body;
+        const updates = {
+            videoId: req.params.videoId,
+            userId: req.userId,
+            savedAt: Date.now()
+        };
+        // Only set fields that were explicitly provided in the request body
+        if (req.body.videoTitle !== undefined)   updates.videoTitle   = req.body.videoTitle;
+        if (req.body.timestamps !== undefined)   updates.timestamps   = req.body.timestamps;
+        if (req.body.aiResponses !== undefined)  updates.aiResponses  = req.body.aiResponses;
+        if (req.body.pdfTitleVal !== undefined)   updates.pdfTitleVal  = req.body.pdfTitleVal;
+        if (req.body.sharedRoomId !== undefined)  updates.sharedRoomId = req.body.sharedRoomId;
+
         const doc = await Video.findOneAndUpdate(
             { videoId: req.params.videoId, userId: req.userId },
-            {
-                videoId: req.params.videoId,
-                userId: req.userId,
-                videoTitle: videoTitle || '',
-                timestamps: timestamps || [],
-                aiResponses: aiResponses || [],
-                pdfTitleVal: pdfTitleVal || '',
-                sharedRoomId: sharedRoomId || '',
-                savedAt: Date.now()
-            },
+            { $set: updates },
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
         res.json({ success: true, data: doc });

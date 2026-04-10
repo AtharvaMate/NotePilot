@@ -273,7 +273,7 @@
                 note: note || '', snapshot, ocrText: ''
             });
 
-            // Save back to backend
+            // Save back to backend — preserve all existing fields (sharedRoomId, pdfTitleVal, etc.)
             const saveRes = await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`, {
                 method: 'PUT',
                 headers,
@@ -281,7 +281,8 @@
                     videoTitle: ytTitle,
                     timestamps,
                     aiResponses,
-                    pdfTitleVal: ytTitle
+                    pdfTitleVal: existing?.pdfTitleVal || ytTitle,
+                    sharedRoomId: existing?.sharedRoomId || ''
                 })
             });
 
