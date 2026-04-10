@@ -1,0 +1,128 @@
+<svg width="800" height="960" viewBox="0 0 800 960" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="pbg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0f0f4"/>
+      <stop offset="100%" stop-color="#e8e8f0"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="rgba(0,0,0,0.18)"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="960" fill="url(#pbg)" rx="0"/>
+
+  <!-- PDF page -->
+  <rect x="120" y="30" width="560" height="900" rx="6" fill="white" filter="url(#shadow)"/>
+
+  <!-- ═══ COVER HEADER ═══ -->
+  <rect x="120" y="30" width="560" height="110" rx="6" fill="#0a0a0a"/>
+  <rect x="120" y="136" width="560" height="4" fill="transparent"/>
+  <!-- Red accent bar top -->
+  <rect x="120" y="30" width="560" height="4" fill="#E50914"/>
+
+  <!-- NotePilot logo -->
+  <rect x="148" y="48" width="22" height="22" rx="5" fill="#E50914"/>
+  <text x="150" y="65" font-size="8" font-weight="900" fill="white" letter-spacing="0.5">NP</text>
+  <text x="176" y="62" font-size="8" font-weight="800" fill="#E50914" letter-spacing="1.5">NOTEPILOT</text>
+
+  <!-- Title -->
+  <text x="400" y="92" text-anchor="middle" font-size="20" font-weight="800" fill="#f0f0f0">Neural Networks — 3Blue1Brown</text>
+  <text x="400" y="115" text-anchor="middle" font-size="10" fill="#E55050">Backpropagation Deep Dive   ·   April 10, 2026</text>
+
+  <!-- Red bottom bar of header -->
+  <rect x="120" y="136" width="280" height="3" fill="#E50914"/>
+  <rect x="400" y="136" width="280" height="3" fill="#B81D24"/>
+
+  <!-- Video link pill -->
+  <rect x="200" y="152" width="400" height="24" rx="12" fill="#f8f8f8" stroke="#ddd" stroke-width="0.8"/>
+  <text x="220" y="168" font-size="9" fill="#E50914">▸ youtube.com/watch?v=Ilg3gGewQ5U</text>
+  <text x="560" y="168" text-anchor="end" font-size="8" fill="#999">3 captures  ·  4 Q&amp;A</text>
+
+  <!-- ═══ SUMMARY SECTION ═══ -->
+  <rect x="148" y="195" width="504" height="28" rx="6" fill="#f5f5f5"/>
+  <rect x="148" y="195" width="5" height="28" rx="2" fill="#E50914"/>
+  <text x="168" y="214" font-size="13" font-weight="700" fill="#E50914">▸  Video Summary</text>
+
+  <text x="158" y="242" font-size="9.5" fill="#505050">This video explores the mathematical foundations of backpropagation in neural</text>
+  <text x="158" y="256" font-size="9.5" fill="#505050">networks. It covers how gradients flow backward through layers using the chain</text>
+  <text x="158" y="270" font-size="9.5" fill="#505050">rule, enabling weight updates that minimize the loss function. Key concepts include</text>
+  <text x="158" y="284" font-size="9.5" fill="#505050">partial derivatives, computational graphs, and the relationship between learning</text>
+  <text x="158" y="298" font-size="9.5" fill="#505050">rate and convergence speed.</text>
+
+  <!-- Divider -->
+  <line x1="148" y1="314" x2="652" y2="314" stroke="#e0e0e0" stroke-width="0.5"/>
+
+  <!-- ═══ CAPTURED NOTES SECTION ═══ -->
+  <rect x="148" y="330" width="504" height="28" rx="6" fill="#f5f5f5"/>
+  <rect x="148" y="330" width="5" height="28" rx="2" fill="#E50914"/>
+  <text x="168" y="349" font-size="13" font-weight="700" fill="#E50914">▸  Captured Notes</text>
+
+  <!-- Note Card 1 -->
+  <rect x="148" y="370" width="504" height="220" rx="8" fill="white" stroke="#e0e0e0" stroke-width="0.8"/>
+  <rect x="148" y="370" width="4" height="220" fill="#E50914"/>
+
+  <!-- Timestamp pill -->
+  <rect x="168" y="380" width="160" height="20" rx="10" fill="#E50914"/>
+  <text x="248" y="394" text-anchor="middle" font-size="9" font-weight="700" fill="white">▸ 4:32  -  Note #1</text>
+
+  <!-- Frame thumbnail -->
+  <rect x="168" y="410" width="280" height="85" rx="4" fill="#1a1a2e" stroke="#ddd" stroke-width="0.5"/>
+  <!-- Simulated frame content -->
+  <rect x="180" y="420" width="80" height="65" rx="2" fill="#252540"/>
+  <text x="220" y="445" text-anchor="middle" font-size="7" fill="#888">Neural</text>
+  <text x="220" y="458" text-anchor="middle" font-size="7" fill="#888">Network</text>
+  <text x="220" y="471" text-anchor="middle" font-size="7" fill="#888">Diagram</text>
+  <!-- Arrows in frame -->
+  <line x1="268" y1="440" x2="300" y2="440" stroke="#E55050" stroke-width="1.5" stroke-dasharray="3,2"/>
+  <line x1="268" y1="460" x2="300" y2="460" stroke="#E55050" stroke-width="1.5" stroke-dasharray="3,2"/>
+  <rect x="308" y="425" width="90" height="50" rx="3" fill="#252540"/>
+  <text x="353" y="445" text-anchor="middle" font-size="7" fill="#10b981">∂L/∂w = δ · a</text>
+  <text x="353" y="460" text-anchor="middle" font-size="7" fill="#888">(weight gradient)</text>
+
+  <!-- User note -->
+  <text x="168" y="510" font-size="9.5" fill="#505050">Backprop uses chain rule — gradients flow backward through layers.</text>
+  <text x="168" y="524" font-size="9.5" fill="#505050">Each weight gets a gradient signal proportional to its contribution.</text>
+
+  <!-- Extracted Text section -->
+  <rect x="168" y="538" width="466" height="18" rx="4" fill="#faeaea"/>
+  <text x="180" y="551" font-size="7.5" font-weight="700" fill="#E50914">EXTRACTED TEXT</text>
+  <text x="176" y="570" font-size="9" fill="#505050">∂L/∂w = δ · a (weight gradient)    W_new = W_old − η · ∂L/∂W</text>
+
+  <!-- Note Card 2 -->
+  <rect x="148" y="600" width="504" height="130" rx="8" fill="white" stroke="#e0e0e0" stroke-width="0.8"/>
+  <rect x="148" y="600" width="4" height="130" fill="#E50914"/>
+
+  <!-- Timestamp pill 2 -->
+  <rect x="168" y="610" width="160" height="20" rx="10" fill="#E50914"/>
+  <text x="248" y="624" text-anchor="middle" font-size="9" font-weight="700" fill="white">▸ 8:15  -  Note #2</text>
+
+  <!-- AI Explanation section -->
+  <rect x="168" y="640" width="466" height="18" rx="4" fill="#fff0f0"/>
+  <text x="180" y="653" font-size="7.5" font-weight="700" fill="#B81D24">AI EXPLANATION</text>
+  <text x="176" y="672" font-size="9" fill="#505050">The learning rate (η) controls how large each weight update step is. A rate</text>
+  <text x="176" y="686" font-size="9" fill="#505050">that's too high causes overshooting and divergence, while one that's too low</text>
+  <text x="176" y="700" font-size="9" fill="#505050">leads to extremely slow convergence or getting stuck in local minima.</text>
+
+  <!-- ═══ Q&A SECTION ═══ -->
+  <rect x="148" y="745" width="504" height="28" rx="6" fill="#f5f5f5"/>
+  <rect x="148" y="745" width="5" height="28" rx="2" fill="#E50914"/>
+  <text x="168" y="764" font-size="13" font-weight="700" fill="#E50914">▸  AI Q&amp;A</text>
+
+  <!-- Q1 -->
+  <rect x="148" y="785" width="504" height="22" rx="5" fill="#faeaea" stroke="#E50914" stroke-width="0.5"/>
+  <text x="164" y="800" font-size="10" font-weight="700" fill="#E50914">Q1</text>
+  <text x="188" y="800" font-size="9.5" fill="#333">What is the vanishing gradient problem?</text>
+
+  <text x="164" y="822" font-size="9" fill="#505050">The vanishing gradient problem occurs when gradients become extremely</text>
+  <text x="164" y="836" font-size="9" fill="#505050">small during backpropagation through many layers, making it nearly</text>
+  <text x="164" y="850" font-size="9" fill="#505050">impossible for early layers to learn. ReLU activations and residual</text>
+  <text x="164" y="864" font-size="9" fill="#505050">connections were developed to address this issue.</text>
+
+  <!-- ═══ FOOTER ═══ -->
+  <rect x="120" y="892" width="560" height="0.7" fill="#E50914"/>
+  <rect x="120" y="893" width="560" height="37" fill="#f5f5f5"/>
+  <text x="148" y="916" font-size="7.5" fill="#999">Generated by NotePilot</text>
+  <text x="400" y="916" text-anchor="middle" font-size="7.5" fill="#999">Neural Networks — 3Blue1Brown</text>
+  <text x="652" y="916" text-anchor="end" font-size="7.5" fill="#E50914">1 / 2</text>
+</svg>

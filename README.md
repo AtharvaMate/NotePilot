@@ -1,412 +1,520 @@
-<div align="center">
+<p align="center">
+  <img src="images/hero.svg" alt="NotePilot" width="100%"/>
+</p>
 
-<img src="https://img.shields.io/badge/Manifest-v3-E50914?style=for-the-badge&logo=googlechrome&logoColor=white"/>
-<img src="https://img.shields.io/badge/Node.js-Express-111111?style=for-the-badge&logo=node.js&logoColor=46d369"/>
-<img src="https://img.shields.io/badge/Puppeteer-PDF_Engine-E50914?style=for-the-badge&logo=puppeteer&logoColor=white"/>
-<img src="https://img.shields.io/badge/MongoDB-Atlas-46d369?style=for-the-badge&logo=mongodb&logoColor=white"/>
-<img src="https://img.shields.io/badge/KaTeX-Math_Rendering-f5c518?style=for-the-badge"/>
-<img src="https://img.shields.io/badge/License-MIT-a0a0a0?style=for-the-badge"/>
+<p align="center">
+  <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Node.js-Express-339933?style=for-the-badge&logo=node.js&logoColor=white"/>
+  <img src="https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white"/>
+  <img src="https://img.shields.io/badge/AI-Groq%20API-a855f7?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Auth-Google%20OAuth-EA4335?style=for-the-badge&logo=google&logoColor=white"/>
+</p>
 
-<br/><br/>
+<p align="center">
+  <img src="https://img.shields.io/badge/Math-KaTeX-10b981?style=flat-square"/>
+  <img src="https://img.shields.io/badge/PDF-jsPDF-f59e0b?style=flat-square"/>
+  <img src="https://img.shields.io/badge/Vision-Llama%204%20Scout-818cf8?style=flat-square"/>
+  <img src="https://img.shields.io/badge/Chat-Llama%203.3%2070B-818cf8?style=flat-square"/>
+  <img src="https://img.shields.io/badge/License-MIT-55556a?style=flat-square"/>
+</p>
 
-```
-███╗   ██╗ ██████╗ ████████╗███████╗██████╗ ██╗██╗      ██████╗ ████████╗
-████╗  ██║██╔═══██╗╚══██╔══╝██╔════╝██╔══██╗██║██║     ██╔═══██╗╚══██╔══╝
-██╔██╗ ██║██║   ██║   ██║   █████╗  ██████╔╝██║██║     ██║   ██║   ██║   
-██║╚██╗██║██║   ██║   ██║   ██╔══╝  ██╔═══╝ ██║██║     ██║   ██║   ██║   
-██║ ╚████║╚██████╔╝   ██║   ███████╗██║     ██║███████╗╚██████╔╝   ██║   
-╚═╝  ╚═══╝ ╚═════╝    ╚═╝   ╚══════╝╚═╝     ╚═╝╚══════╝ ╚═════╝    ╚═╝   
-```
-
-### **AI-Powered YouTube Study Notes — Chrome Extension**
-*Capture frames · OCR equations · AI chat · Generate quizzes & flashcards · Export beautiful PDFs · Share study rooms*
-
-<br/>
-
-![NotePilot Demo](https://img.shields.io/badge/▶_Watch_Demo-E50914?style=for-the-badge&logoColor=white)
-&nbsp;
-![Install Extension](https://img.shields.io/badge/⬇_Install_Extension-1a1a1a?style=for-the-badge&logoColor=white)
-&nbsp;
-![Report Bug](https://img.shields.io/badge/🐛_Report_Bug-333?style=for-the-badge)
-
-</div>
+<p align="center">
+  <b>NotePilot</b> is a full-stack Chrome extension that transforms any YouTube video into an<br/>
+  interactive AI-powered study session — capture frames, extract text, quiz yourself,<br/>
+  practice flashcards, share live study rooms, and export polished PDF notes.
+</p>
 
 ---
 
-## ✦ What is NotePilot?
+## 📑 Table of Contents
 
-NotePilot is a **Manifest v3 Chrome Extension** that turns any YouTube video into an interactive study session. You capture video frames at key moments, add personal notes, extract text from screenshots using AI vision (OCR), ask an AI questions about the video, generate quizzes and flashcards automatically, and export everything as a polished, math-aware PDF — all from a 420px popup living right next to YouTube.
-
-Built for students, researchers, and self-learners who watch lecture videos, coding tutorials, or any educational content on YouTube.
-
----
-
-## ✦ Feature Showcase
-
-### 📸 Frame Capture & Annotation
-
-Click **Capture** in the popup (or the injected camera button in the YouTube player controls) to snapshot the exact frame you're watching. Each note card shows:
-
-- A **timestamp pill** linking directly back to that moment in the video via `Watch ↗`
-- A **frame snapshot** (JPEG, cropped precisely to the video element using `devicePixelRatio`)
-- An editable **note textarea** for your own thoughts
-- An **OCR block** — AI vision reads any text, equations, code, or diagrams in the frame
-- An **AI Explanation block** — one click to get a plain-English explanation of what's on screen
-- A toggle to **include / exclude** the note from the PDF export
-
-> **Player button:** A camera SVG button is injected directly into the YouTube player's right controls bar. A mini popup overlay appears in-page, letting you add a note and save — all without switching back to the extension popup.
+- [How It Works](#-how-it-works)
+- [Screenshots](#-screenshots)
+- [Architecture](#-architecture)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [API Reference](#-api-reference)
+- [Configuration](#-configuration)
+- [Deployment](#-deployment)
+- [Known Limitations](#-known-limitations)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
-### 🤖 AI Chat (Video-Aware)
+## 🔄 How It Works
 
-The **AI Chat** tab is a full conversational interface backed by your video's transcript and your captured notes:
+<p align="center">
+  <img src="images/workflow.svg" alt="NotePilot Workflow" width="100%"/>
+</p>
 
-| What you can ask | What you get |
+| Step | Action | Description |
+|:---:|---|---|
+| **1** | 🎥 **Watch** | Open any YouTube video — NotePilot auto-detects it |
+| **2** | 📸 **Capture** | Grab video frames with one click. AI extracts text & explains slides |
+| **3** | 🧠 **Learn** | Use AI Chat, take a 10-question Quiz, or study with Flashcards |
+| **4** | 🔗 **Share & Export** | Download a polished PDF or share a live study room link |
+
+---
+
+## 📸 Screenshots
+
+### Notes Panel — Capture, OCR & AI Explain
+
+<p align="center">
+  <img src="ss/image.png" alt="Notes Panel — Frame capture with OCR and AI explanation" width="620"/>
+</p>
+
+> Capture video frames at any timestamp. AI extracts all visible text (OCR) and provides instant explanations. Add your own notes and export everything as a styled PDF.
+
+---
+
+### AI Chat & Quiz Mode
+
+<p align="center">
+  <img src="ss/image copy.png" alt="AI Chat and Quiz Mode side by side" width="720"/>
+</p>
+
+<table>
+  <tr>
+    <td width="50%">
+      <strong>💬 AI Chat</strong> — Ask questions about the video. Your captured notes and OCR text are automatically included as context for accurate, video-specific answers.
+    </td>
+    <td width="50%">
+      <strong>❓ Quiz Mode</strong> — AI generates MCQs from the video transcript. Features difficulty tags, score tracking, explanations, and rewatch links for wrong answers.
+    </td>
+  </tr>
+</table>
+
+---
+
+### History & Flashcards
+
+<p align="center">
+  <img src="ss/image copy 2.png" alt="History panel and Flashcards side by side" width="720"/>
+</p>
+
+<table>
+  <tr>
+    <td width="50%">
+      <strong>📚 History</strong> — View all saved notes across videos. Search, re-open on YouTube, download PDFs from history, or delete. Cloud-synced per user.
+    </td>
+    <td width="50%">
+      <strong>📇 Flashcards</strong> — AI generates flip-to-reveal study cards from video content. Tap to flip between question and answer, swipe to navigate.
+    </td>
+  </tr>
+</table>
+
+---
+
+### PDF Export
+
+<p align="center">
+  <img src="ss/screenshot-pdf.svg" alt="PDF Export Preview" width="560"/>
+</p>
+
+> Professionally styled A4 PDF with cover page, AI-generated video summary, timestamped capture cards with screenshots, OCR text, AI explanations, Q&A section, and branded footers. Math equations are rendered via KaTeX + html2canvas.
+
+---
+
+## 🏗 Architecture
+
+<p align="center">
+  <img src="images/architecture.svg" alt="NotePilot System Architecture" width="100%"/>
+</p>
+
+NotePilot is a **full-stack application** with two main layers:
+
+| Layer | Description |
 |---|---|
-| "Summarize this video" | Concise transcript-backed summary |
-| "What is vanishing gradient?" | Contextual explanation tied to the lecture |
-| "Explain the equation at 8:14" | Vision-model reads your snapshot |
-| "Write 5 quiz questions" | Triggers the Quiz generator inline |
+| **Chrome Extension** | Manifest V3 popup + content script injected into YouTube. Handles UI, frame capture, PDF generation, and all user interactions. |
+| **Backend API** | Node.js + Express server with MongoDB. Manages auth (email/password + Google OAuth), video data persistence, shared rooms, and AI proxy to Groq. |
 
-Messages are persisted per video. The transcript is fetched directly from YouTube's caption track API (manual captions preferred over auto-generated, English prioritised).
+> 🔐 All AI calls are proxied through the backend — the Groq API key never reaches the client.
 
 ---
 
-### 🧠 Quiz Generator
+## ✨ Features
 
-Switch to the **Quiz** tab and NotePilot generates 4-option MCQs from your notes and the video transcript. Features:
+<p align="center">
+  <img src="images/features.svg" alt="Feature Highlights" width="100%"/>
+</p>
 
-- **Progress bar** showing current question out of total
-- **Instant feedback** — correct answer highlighted in green, wrong choice marked in red
-- **Rewatch button** — jumps the video back to the exact timestamp the question came from
-- **Score breakdown** at the end with a retry or regenerate option
-- Questions excluded from the quiz do not appear in the PDF export
+<details>
+<summary><strong>🎥 Frame Capture</strong></summary>
+
+- Capture the current video frame via a toolbar button injected into YouTube player controls, or from the extension popup
+- Frames are cropped precisely to the video area using the device pixel ratio for sharp results
+- Each capture is saved with its timestamp, a user note, and source video metadata
+</details>
+
+<details>
+<summary><strong>🔍 AI Text Extraction (OCR)</strong></summary>
+
+- Sends the captured frame to **Llama 4 Scout** (vision model via Groq) to extract all visible text
+- Handles equations, diagrams, multiple-choice options, and list layouts
+- Diagram descriptions are enclosed in `[square brackets]` for easy identification
+- Raw output only — no solving or summarising
+</details>
+
+<details>
+<summary><strong>✨ AI Explanation</strong></summary>
+
+- One-click explanation of any extracted slide content by **Llama 3.3 70B**
+- Responses use LaTeX notation (`$...$` inline, `$$...$$` display) rendered live with **KaTeX**
+</details>
+
+<details>
+<summary><strong>💬 AI Chat Tutor</strong></summary>
+
+- Conversational assistant scoped to the current video
+- Automatically includes captured notes and extracted slide text as context
+- Supports multi-turn conversation with the last 4 Q&A pairs for coherent follow-ups
+- Each answer can be individually toggled in/out of the PDF export
+</details>
+
+<details>
+<summary><strong>❓ AI Quiz Mode</strong></summary>
+
+- AI generates **10 MCQs** from the entire video transcript or from your captured notes
+- Difficulty tags: easy (3), medium (5), hard (2) questions
+- Score ring, explanations, topic tags, and **rewatch links** for wrong answers
+- Choose between "Full transcript" or "My notes only" as the quiz source
+</details>
+
+<details>
+<summary><strong>📇 AI Flashcards</strong></summary>
+
+- Generates **15 flip-to-reveal study cards** from the video transcript or captured notes
+- Each card has a topic tag, question (front), and answer (back)
+- Tap to flip, swipe to navigate, supports KaTeX math rendering
+</details>
+
+<details>
+<summary><strong>🔗 Shared Study Rooms</strong></summary>
+
+- Share your notes as a **live collaborative room** with a unique link
+- Room viewers can browse captures, add annotations, generate quizzes, and create flashcard sets
+- Notes sync automatically — captures made after sharing are pushed in real-time
+- Hosted on Vercel or viewable via the extension's built-in viewer
+</details>
+
+<details>
+<summary><strong>🔐 Authentication</strong></summary>
+
+- **Email + Password** registration and login with bcrypt hashing
+- **Google Sign-In** via Chrome's `chrome.identity.launchWebAuthFlow()` API
+  - One-click OAuth2 flow → Google consent popup → ID token → JWT session
+  - Automatically creates a user account on first Google sign-in
+  - Syncs Google profile name and avatar
+- JWT tokens stored in `localStorage` and `chrome.storage.local`
+</details>
+
+<details>
+<summary><strong>📚 History</strong></summary>
+
+- View all saved video notes in a searchable, scrollable list
+- Each card shows: video title, note count, Q&A count, shared badge, relative date
+- Actions: Open on YouTube, Download PDF (from history), Delete
+- Cloud-synced per user — your notes follow you across devices
+</details>
+
+<details>
+<summary><strong>📄 PDF Export</strong></summary>
+
+- Generates a **professionally styled A4 PDF** via jsPDF
+- Cover page with video title, date, capture count, and clickable YouTube link
+- AI-generated video summary, capture cards with screenshots, OCR text, explanations
+- **Math rendering**: LaTeX → KaTeX → html2canvas with precise baseline alignment
+- **Font safety**: Unicode symbols mapped to ASCII to prevent font fallback issues
+</details>
 
 ---
 
-### 🃏 Flashcard Generator
-
-The **Cards** tab generates flip-style study cards. Each card shows a question on the front and the answer (with KaTeX-rendered math if needed) on the back. Cards are ordered by timestamp so they follow the video's progression naturally.
-
----
-
-### 📤 Beautiful PDF Export
-
-The export pipeline sends your notes to a **local or cloud Express server** that renders a full HTML page with KaTeX math, then uses **Puppeteer** (headless Chromium) to produce an A4 PDF. The generated PDF includes:
-
-- A **cover page** with title, video name, capture count, and Q&A count — dark branding, indigo accents
-- A **Video Summary** section (AI-generated)
-- Each **note card** with its snapshot image, timestamp pill, YouTube deep-link, note text, OCR extract, and AI explanation
-- A **Q&A section** with all your AI chat exchanges
-- KaTeX-rendered `$inline$` and `$$display$$` math throughout
-- Page numbers in the footer via CSS `@page`
-
-Math rendering is double-layered: KaTeX runs client-side in the popup for display, and server-side inside the Puppeteer page (via CDN) for the PDF, ensuring equations are pixel-perfect in print.
-
----
-
-### 🔗 Study Room Sharing
-
-Click **Share** on any video to upload your notes to the backend and generate a shareable room URL. Classmates can open the link to view your captures, annotations, and Q&A. Notes sync live as you add new captures (debounced push via `pushNoteToRoom`). A green **SHARED** badge appears on history cards that have an active room.
-
----
-
-### 🕘 History Panel
-
-The **History** tab shows all your previously saved sessions, searchable by title. Each card shows:
-
-- Initials avatar with a gradient red background
-- Video title, note count, Q&A count, and relative timestamp
-- **Open on YouTube** — reopens the video in a new tab
-- **PDF** — regenerates and downloads the PDF for that session
-- **Delete** — soft confirm (single click turns to "Sure?", second click confirms)
-
----
-
-### 🔐 Authentication
-
-NotePilot supports two sign-in flows:
-
-- **Email / Password** — JWT-based, stored in `localStorage` and synced to `chrome.storage.local` so content scripts on `youtube.com` can access the token
-- **Google OAuth** — via `chrome.identity.launchWebAuthFlow`, exchanges a Google `id_token` with the backend's `/api/auth/google` endpoint
-
----
-
-## ✦ Architecture
-
-```
-┌──────────────────────────────────── Chrome Extension ────────────────────────────────────┐
-│                                                                                            │
-│  index.html + style.css          content.js                    background.js              │
-│  ┌─────────────────────┐    ┌──────────────────────┐    ┌───────────────────────────┐    │
-│  │  Popup UI (420×520) │    │  YouTube page inject  │    │  Service Worker           │    │
-│  │  5 tabs · Auth UI   │    │  Player camera button │    │  captureVisibleTab        │    │
-│  │  Chat · Quiz · Cards│    │  Mini note overlay    │    │  (cross-origin screenshot)│    │
-│  └─────────┬───────────┘    └──────────┬────────────┘    └───────────────────────────┘    │
-│            │                           │                                                    │
-│            └─────────────┬─────────────┘                                                   │
-│                          │  script.js  (core logic)                                        │
-│                    JWT auth headers · REST calls · KaTeX · Transcript fetch                │
-└──────────────────────────────────────────────────────────────────────────────────────────┘
-                                          │
-                              REST / JWT (Bearer)
-                                          │
-┌─────────────────────────── Node.js Express Backend ─────────────────────────────────────┐
-│                                                                                           │
-│  /api/auth      /api/videos/:id      /api/ai/chat      /api/ai/vision                   │
-│  /api/rooms     /generate-pdf  ──► Puppeteer + KaTeX CDN ──► A4 PDF Buffer              │
-│                                                                                           │
-└──────────────────┬────────────────────────┬────────────────────────┬─────────────────────┘
-                   │                        │                        │
-             MongoDB Atlas         OpenAI / Claude API        Google OAuth 2.0
-             (video sessions,       (chat · vision · quiz      (identity token
-              user accounts)         · flashcard gen)           verification)
-```
-
----
-
-## ✦ Tech Stack
+## 🛠 Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Extension | Chrome Manifest v3, Vanilla JS, CSS custom properties |
-| UI | Custom dark design system (`#0a0a0a` base, `#E50914` accent, `#46d369` success) |
-| Math | KaTeX 0.16.9 — inline `$...$` and display `$$...$$` |
-| Backend | Node.js, Express 4 |
-| PDF | Puppeteer (headless Chromium), KaTeX CDN inside page |
-| Database | MongoDB Atlas |
-| Auth | JWT, Google OAuth 2.0 via `chrome.identity` |
-| AI | OpenAI or Claude API (chat + vision endpoints) |
-| Deployment | Render (backend), Chrome Web Store (extension) |
+| Extension Platform | Chrome Manifest V3 |
+| Backend Framework | [Express.js](https://expressjs.com) (Node.js) |
+| Database | [MongoDB Atlas](https://www.mongodb.com/atlas) via Mongoose |
+| Authentication | JWT + Google OAuth 2.0 + bcryptjs |
+| AI — Chat & Explanations | [Groq](https://groq.com) — Llama 3.3 70B Versatile |
+| AI — Vision / OCR | [Groq](https://groq.com) — Llama 4 Scout 17B |
+| AI — Quiz & Flashcards | [Groq](https://groq.com) — Llama 3.3 70B (structured JSON) |
+| Math Rendering (UI) | [KaTeX](https://katex.org) v0.16.9 |
+| Math Rendering (PDF) | KaTeX + [html2canvas](https://html2canvas.hertzen.com) |
+| PDF Generation | [jsPDF](https://github.com/parallax/jsPDF) |
+| Screenshot | `chrome.tabs.captureVisibleTab` |
+| Google Auth (Extension) | `chrome.identity.launchWebAuthFlow` |
+| Google Auth (Backend) | [google-auth-library](https://github.com/googleapis/google-auth-library-nodejs) |
+| Room Viewer Hosting | [Vercel](https://vercel.com) |
+| Backend Hosting | [Render](https://render.com) |
 
 ---
 
-## ✦ Project Structure
+## 📁 Project Structure
 
 ```
-notepilot/
+NotePilot/
+├── manifest.json              # Chrome Manifest V3 config
+├── index.html                 # Extension popup UI
+├── style.css                  # Popup styles (dark theme)
+├── script.js                  # Core logic — capture, AI, PDF, quiz, flashcards, share, history
+├── config.js                  # Client config: backend URL, Google Client ID
+├── background.js              # Service worker — captureVisibleTab
+├── content.js                 # Injected into YouTube — player button + transcript
+├── content-inject.css         # Styles for injected YouTube elements
+├── katex.min.js               # Bundled KaTeX
+├── html2canvas.min.js         # Bundled html2canvas
+├── jspdf.min.js               # Bundled jsPDF
 │
-├── extension/                  # Chrome Extension
-│   ├── manifest.json           # MV3 config — permissions, host_permissions, CSP
-│   ├── index.html              # Popup — 420×520px — 5 tabs
-│   ├── style.css               # Full dark design system
-│   ├── script.js               # Core logic (capture, AI, PDF, rooms, auth)
-│   ├── content.js              # YouTube page injector (player button + mini popup)
-│   ├── content-inject.css      # Styles injected into youtube.com
-│   ├── background.js           # Service worker — captureVisibleTab
-│   ├── config.js               # BACKEND_URL, GOOGLE_CLIENT_ID (gitignored)
-│   ├── katex.min.js            # KaTeX bundled locally
-│   ├── html2canvas.min.js      # For math→image in PDF
-│   └── jspdf.min.js            # Client-side PDF fallback
+├── room/
+│   └── index.html             # Shared room viewer (self-contained SPA)
 │
-├── server/                     # Node.js PDF + API server
-│   ├── server.js               # Express app — /generate-pdf + all /api/* routes
-│   └── package.json
+├── images/                    # README assets (SVG diagrams)
+│   ├── hero.svg
+│   ├── workflow.svg
+│   ├── architecture.svg
+│   ├── features.svg
+│   └── ...
 │
-└── README.md
+├── ss/                        # Real extension screenshots
+│   ├── image.png              # Notes panel
+│   ├── image copy.png         # AI Chat + Quiz
+│   ├── image copy 2.png       # History + Flashcards
+│   └── image copy 3.png       # Architecture overview
+│
+└── backend/
+    ├── server.js              # Express API server
+    ├── package.json           # Backend dependencies
+    ├── .env                   # Environment variables (secrets)
+    ├── .env.example           # Template for .env
+    └── models/
+        ├── User.js            # User schema (email, googleId, avatar)
+        ├── Video.js           # Per-user video data (notes, QA, settings)
+        └── Room.js            # Shared room schema (notes, annotations)
 ```
 
 ---
 
-## ✦ Installation & Setup
+## 🚀 Installation
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/AtharvaMate/notepilot.git
-cd notepilot
-```
-
-### 2. Configure the extension
-
-Create `extension/config.js` (this file is gitignored — never commit secrets):
-
-```js
-// extension/config.js
-const NOTEPILOT_CONFIG = {
-    BACKEND_URL:      'http://localhost:3001',      // or your Render URL
-    ROOM_VIEWER_URL:  'http://localhost:3001/room',
-    GOOGLE_CLIENT_ID: 'YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com'
-};
-```
-
-### 3. Install and start the backend server
+### 1. Backend Setup
 
 ```bash
-cd server
-npm install          # installs express, puppeteer, mongoose, jsonwebtoken …
-node server.js       # runs on port 3001 by default
+# Clone the repository
+git clone https://github.com/AtharvaMate/NotePilot.git
+cd NotePilot/backend
+
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your values (see Environment Variables below)
+
+# Start the server
+npm run dev
 ```
 
-Puppeteer downloads a bundled Chromium on first install (~170 MB). On Linux servers add these flags (already in `server.js`):
+> **Note**: The backend is already deployed at `https://notepilot-3ntc.onrender.com`. You only need to run locally for development.
 
-```
---no-sandbox  --disable-setuid-sandbox  --disable-dev-shm-usage  --disable-gpu
-```
+### 2. Google OAuth Setup
 
-### 4. Load the extension in Chrome
+To enable **Sign in with Google**:
 
-1. Open `chrome://extensions/`
+1. Go to [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
+2. Create a new **OAuth 2.0 Client ID** (type: **Web application**)
+3. Under **Authorized redirect URIs**, add:
+   ```
+   https://<YOUR_EXTENSION_ID>.chromiumapp.org/
+   ```
+   > 💡 Find your extension ID at `chrome://extensions` with Developer Mode on
+4. Copy the **Client ID** and set it in:
+   - `config.js` → `GOOGLE_CLIENT_ID`
+   - `backend/.env` → `GOOGLE_CLIENT_ID`
+5. Configure the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent) (Testing or Published)
+
+### 3. Chrome Extension Setup
+
+1. Open `chrome://extensions`
 2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked**
-4. Select the `extension/` folder
-5. Pin NotePilot from the extensions toolbar
+3. Click **Load unpacked** → select the `NotePilot/` root folder
+4. The NotePilot icon appears in your toolbar ✅
 
-### 5. Environment variables (backend)
+### Environment Variables
+
+Create `backend/.env`:
 
 ```env
 PORT=3001
-MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/notepilot
-JWT_SECRET=your_super_secret_key_here
-OPENAI_API_KEY=sk-...
-GOOGLE_CLIENT_ID=....apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-...
+MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/notepilot
+GROQ_API_KEY=gsk_your_groq_api_key_here
+JWT_SECRET=your-secret-key-min-32-chars
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 ```
 
----
-
-## ✦ Deploying to Render
-
-1. Push your `server/` folder to GitHub
-2. Create a new **Web Service** on [render.com](https://render.com)
-3. Set **Build command:** `npm install`
-4. Set **Start command:** `node server.js`
-5. Add the environment variables above in Render's dashboard
-6. Update `BACKEND_URL` in `config.js` to your Render URL (e.g. `https://notepilot-xxxx.onrender.com`)
-
-> Puppeteer works on Render's standard instances with the `--no-sandbox` flags already set in `server.js`.
+| Variable | Description | Required |
+|---|---|---|
+| `PORT` | Server port | No (default: 3001) |
+| `MONGODB_URI` | MongoDB connection string | ✅ |
+| `GROQ_API_KEY` | [Groq](https://console.groq.com) API key for AI features | ✅ |
+| `JWT_SECRET` | Secret for signing JWT auth tokens | ✅ |
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID | ✅ |
 
 ---
 
-## ✦ Host Permissions & Privacy
+## 📖 Usage
 
-The extension requests the following permissions:
+| Step | Action |
+|:---:|---|
+| 1 | **Sign in** — Click NotePilot icon → sign in with email or Google |
+| 2 | **Open a YouTube video** — auto-detected |
+| 3 | **Capture** — Click `Capture` in popup or camera icon in YouTube player |
+| 4 | **Extract & Explain** — Click `Extract Text` for OCR, then `Explain` |
+| 5 | **AI Chat** — Switch to Chat tab, ask questions about the video |
+| 6 | **Quiz** — Go to Quiz tab → choose source → `Generate Quiz` |
+| 7 | **Flashcards** — Go to Cards tab → `Generate Flashcards from Notes` |
+| 8 | **Share** — Click `Share` to create a live study room link |
+| 9 | **Export** — Enter a title → `Export PDF` |
+| 10 | **History** — Go to History tab to revisit any saved video |
+
+---
+
+## 📡 API Reference
+
+<details>
+<summary><strong>Authentication</strong></summary>
+
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `POST` | `/api/auth/register` | ✗ | Register with email + password |
+| `POST` | `/api/auth/login` | ✗ | Login with email + password |
+| `POST` | `/api/auth/google` | ✗ | Verify Google ID token, create/login user |
+| `GET` | `/api/auth/me` | ✓ | Get current user profile |
+</details>
+
+<details>
+<summary><strong>Video Data</strong></summary>
+
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `GET` | `/api/videos` | ✓ | List all saved videos (lightweight) |
+| `GET` | `/api/videos/:videoId` | ✓ | Get full video data |
+| `PUT` | `/api/videos/:videoId` | ✓ | Save / update video data |
+| `DELETE` | `/api/videos/:videoId` | ✓ | Delete saved video data |
+</details>
+
+<details>
+<summary><strong>Shared Rooms</strong></summary>
+
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `POST` | `/api/rooms` | ✓ | Create a new room |
+| `GET` | `/api/rooms/:roomId` | ✗ | Get room data (public) |
+| `PATCH` | `/api/rooms/:roomId` | ✓ | Update room notes |
+| `PUT` | `/api/rooms/:roomId/notes/:idx` | ✓ | Push a single note (live sync) |
+| `PATCH` | `/api/rooms/:roomId/notes/:idx` | ✓ | Update note text fields |
+| `POST` | `/api/rooms/:roomId/annotations` | ✗ | Add annotation |
+| `GET` | `/api/rooms/:roomId/annotations` | ✗ | Get annotations |
+</details>
+
+<details>
+<summary><strong>AI Proxy</strong></summary>
+
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `POST` | `/api/ai/chat` | ✓ | Chat completion (Llama 3.3 70B) |
+| `POST` | `/api/ai/vision` | ✓ | Vision completion (Llama 4 Scout) |
+| `POST` | `/api/ai/quiz` | ✗ | Generate 10-question quiz (JSON) |
+| `POST` | `/api/ai/flashcards` | ✗ | Generate 15 flashcards (JSON) |
+</details>
+
+<details>
+<summary><strong>Room Quizzes & Flashcards</strong></summary>
+
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `POST` | `/api/rooms/:roomId/quiz` | ✗ | Save quiz to room |
+| `GET` | `/api/rooms/:roomId/quizzes` | ✗ | List room quizzes |
+| `GET` | `/api/rooms/:roomId/quiz/:quizId` | ✗ | Get specific quiz |
+| `POST` | `/api/rooms/:roomId/flashcards` | ✗ | Save flashcard set |
+| `GET` | `/api/rooms/:roomId/flashcards` | ✗ | List flashcard sets |
+| `GET` | `/api/rooms/:roomId/flashcards/:setId` | ✗ | Get specific set |
+</details>
+
+---
+
+## ⚙️ Configuration
+
+| Setting | File | Default |
+|---|---|---|
+| Backend URL | `config.js` | `https://notepilot-3ntc.onrender.com` |
+| Room Viewer URL | `config.js` | `https://notepilot-room.vercel.app` |
+| Google Client ID | `config.js` + `.env` | — (required) |
+| Chat Model | `backend/server.js` | `llama-3.3-70b-versatile` |
+| Vision Model | `backend/server.js` | `meta-llama/llama-4-scout-17b-16e-instruct` |
+
+### Permissions
 
 | Permission | Reason |
 |---|---|
-| `activeTab` | Read the current YouTube tab's URL and video state |
-| `scripting` | Inject `content.js` and CSS into YouTube pages |
-| `storage` | Persist the auth JWT token for content scripts |
-| `identity` | Launch Google OAuth popup via `chrome.identity` |
-| `https://www.youtube.com/*` | Inject capture button, read transcript |
-| `https://notepilot-*.onrender.com/*` | All API calls |
-
-No user data is ever sold or shared. Notes and snapshots are stored in your personal MongoDB account scoped to your user ID behind JWT authentication.
+| `activeTab` | Read the current YouTube tab URL |
+| `scripting` | Inject capture button into YouTube player |
+| `storage` | Persist auth tokens and sync state |
+| `identity` | Google Sign-In via `chrome.identity.launchWebAuthFlow()` |
 
 ---
 
-## ✦ Key Design Decisions
+## 🌐 Deployment
 
-**Why Puppeteer for PDF instead of jsPDF?**
-jsPDF cannot render KaTeX math or complex CSS layouts faithfully. Puppeteer runs real Chromium, meaning the PDF looks exactly like the HTML — including fonts, flexbox, page breaks, and KaTeX-rendered equations. The server adds a 500ms settle delay after `networkidle0` to ensure KaTeX's CDN fonts load before printing.
+### Backend → Render
 
-**Why a backend instead of pure client-side?**
-Three reasons: (1) PDF generation needs Puppeteer's headless browser, (2) AI API keys must stay server-side, (3) shared study rooms require a persistent store.
+1. Push to GitHub
+2. Create a **Web Service** on [Render](https://render.com)
+3. Set root directory: `backend`, build: `npm install`, start: `npm start`
+4. Add all environment variables
 
-**Why Manifest v3?**
-MV3 is Chrome's current and only supported manifest format for new extensions. `captureVisibleTab` is handled by the background service worker because content scripts on `youtube.com` cannot call it directly — they message `background.js` which relays the screenshot back.
+### Room Viewer → Vercel
 
-**KaTeX double-rendering**
-Math is rendered with KaTeX in the popup for live display (`renderWithMath()` in `script.js`) and again server-side inside Puppeteer's page (via KaTeX CDN auto-render) for the PDF. This ensures equations are crisp in both contexts without any canvas-to-image tricks.
+1. Deploy `room/index.html` as a static site on [Vercel](https://vercel.com)
+2. Update `config.js → ROOM_VIEWER_URL`
 
----
+### Extension → Chrome Web Store
 
-## ✦ API Reference
-
-### `POST /generate-pdf`
-
-```json
-{
-  "notes": [
-    {
-      "timestamp": "4:32",
-      "videoTime": 272,
-      "snapshot": "data:image/jpeg;base64,...",
-      "note": "Backprop uses chain rule",
-      "ocrText": "∂L/∂w = δ · a",
-      "aiExplanation": "The weight gradient..."
-    }
-  ],
-  "aiResponses": [
-    { "question": "What is ReLU?", "answer": "...", "includedInPdf": true }
-  ],
-  "videoTitle": "3Blue1Brown — Neural Networks",
-  "videoId": "aircAruvnKk",
-  "pdfTitle": "Neural Networks Notes",
-  "aiSummary": "This video covers..."
-}
-```
-
-Returns: `application/pdf` binary stream with `Content-Disposition: attachment`.
-
-### `GET /api/videos/:videoId`
-
-Returns saved session for the authenticated user. Requires `Authorization: Bearer <token>`.
-
-### `PUT /api/videos/:videoId`
-
-Upserts the full session object (timestamps, aiResponses, sharedRoomId, pdfTitleVal).
-
-### `POST /api/ai/chat`
-
-Proxies to OpenAI/Claude. Body: `{ messages, temperature, max_tokens }`. Injects system prompt with transcript context server-side.
-
-### `POST /api/ai/vision`
-
-Same as `/chat` but accepts a base64 image in the message content for OCR/explanation.
+1. Zip the project (exclude `backend/`, `node_modules/`, `.env`)
+2. Upload at [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole)
 
 ---
 
-## ✦ Contributing
+## ⚠️ Known Limitations
 
-Pull requests are welcome! Here's how to get set up:
-
-```bash
-# Fork the repo, then:
-git clone https://github.com/YOUR_USERNAME/notepilot.git
-cd notepilot
-
-# Create a feature branch
-git checkout -b feat/my-feature
-
-# Make changes, then commit
-git commit -m "feat: add support for X"
-git push origin feat/my-feature
-
-# Open a Pull Request on GitHub
-```
-
-Please follow these conventions:
-
-- Use **conventional commits** (`feat:`, `fix:`, `docs:`, `refactor:`)
-- Keep the dark UI design system consistent — colours are defined as CSS variables in `style.css`
-- All new API routes must be JWT-protected
-- Test PDF generation locally before submitting PDF-related changes
+- Only works on `youtube.com/watch` URLs
+- Frame capture requires the YouTube tab to be visible (Chrome restriction)
+- Transcript-based quiz requires YouTube captions to be available
+- PDF math rendering is sequential — many equations = slower generation
+- Groq free tier has rate limits; heavy usage may need a paid plan
+- Google Sign-In requires redirect URI registration in Cloud Console
+- Render free tier cold-starts (15–30s delay on first request)
 
 ---
 
-## ✦ Roadmap
+## 🤝 Contributing
 
-- [ ] Offline mode — queue captures when backend is unreachable
-- [ ] Custom AI model selection (GPT-4o, Claude Sonnet, Gemini)
-- [ ] Export to Notion / Obsidian markdown
-- [ ] Collaborative real-time annotation in study rooms (WebSocket)
-- [ ] Support for non-YouTube video players (Coursera, edX, Udemy)
-- [ ] Mobile companion app for reviewing flashcards
+Contributions are welcome! Please:
 
----
-
-## ✦ License
-
-MIT © 2025 [AtharvaMate](https://github.com/AtharvaMate)
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ---
 
-<div align="center">
+## 📄 License
 
-Built with ☕ and a lot of YouTube lecture videos.
-
-**Star ⭐ the repo if NotePilot helped you study smarter!**
-
-</div>
+MIT © 2025 NotePilot
