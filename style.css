@@ -336,15 +336,16 @@ body {
 .cap-img {
     width: 100%;
     border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border)
+    border-bottom: 1px solid var(--border);
+    background: #000;
 }
 
 .cap-img img {
     width: 100%;
     height: auto;
     display: block;
-    object-fit: cover;
-    max-height: 150px
+    object-fit: contain;
+    max-height: 220px;
 }
 
 .cap-note {
@@ -1866,6 +1867,33 @@ body {
 .history-btn-open:hover {
     background: rgba(229, 9, 20, .14);
     border-color: rgba(229, 9, 20, .22);
+}
+
+.history-btn-pdf {
+    padding: .3rem .5rem;
+    font-size: .67rem;
+    font-weight: 600;
+    background: rgba(229, 9, 20, .06);
+    color: var(--accent-l);
+    border: 1px solid rgba(229, 9, 20, .1);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .25rem;
+    font-family: inherit;
+}
+
+.history-btn-pdf:hover {
+    background: rgba(229, 9, 20, .14);
+    border-color: rgba(229, 9, 20, .22);
+}
+
+.history-btn-pdf:disabled {
+    opacity: .5;
+    cursor: not-allowed;
 }
 
 .history-btn-delete {

@@ -1873,6 +1873,14 @@ function renderHistory() {
                     </svg>
                     ${isCurrentVideo ? 'Current Video' : 'Open on YouTube'}
                 </button>
+                <button class="history-btn-pdf" data-vid="${v.videoId}" data-title="${escapeHtml(v.videoTitle)}" title="Download PDF">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    PDF
+                </button>
                 <button class="history-btn-delete" data-vid="${v.videoId}" title="Delete saved notes">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"/>
@@ -1891,6 +1899,26 @@ function renderHistory() {
             const vid = btn.dataset.vid;
             if (vid) {
                 window.open(`https://www.youtube.com/watch?v=${vid}`, '_blank');
+            }
+        });
+    });
+
+    // Wire PDF download buttons
+    historyList.querySelectorAll('.history-btn-pdf').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const vid = btn.dataset.vid;
+            if (!vid) return;
+            btn.disabled = true;
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin .7s linear infinite"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ...';
+
+            try {
+                await downloadHistoryPDF(vid);
+            } catch (err) {
+                showToast('PDF failed: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHTML;
             }
         });
     });
@@ -1943,6 +1971,46 @@ function renderHistory() {
             }, 50);
         });
     });
+}
+
+// Download PDF for a video from history — temporarily swaps global state
+async function downloadHistoryPDF(histVideoId) {
+    // Save current global state
+    const savedTimestamps = timestamps;
+    const savedAiResponses = aiResponses;
+    const savedVideoTitle = videoTitle;
+    const savedVideoId = videoId;
+    const savedPdfTitleVal = pdfTitle.value;
+
+    try {
+        showToast('Fetching notes & generating PDF...', 'loading');
+
+        // Fetch full video data from backend
+        const res = await fetch(`${BACKEND_URL}/api/videos/${histVideoId}`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('Could not fetch video data');
+        const data = await res.json();
+
+        // Temporarily set global state to the fetched video
+        timestamps = data.timestamps || [];
+        aiResponses = data.aiResponses || [];
+        videoTitle = data.videoTitle || 'Study Notes';
+        videoId = data.videoId || histVideoId;
+        pdfTitle.value = data.pdfTitleVal || data.videoTitle || 'Study Notes';
+
+        if (!timestamps.length && !aiResponses.length) {
+            throw new Error('No notes found for this video');
+        }
+
+        // Call existing PDF generator
+        await makePDF();
+    } finally {
+        // Restore original global state
+        timestamps = savedTimestamps;
+        aiResponses = savedAiResponses;
+        videoTitle = savedVideoTitle;
+        videoId = savedVideoId;
+        pdfTitle.value = savedPdfTitleVal;
+    }
 }
 
 // Search filtering
