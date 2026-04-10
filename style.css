@@ -1698,3 +1698,263 @@ body {
     animation: pulse 2s ease-in-out infinite;
     display: inline-block;
 }
+
+/* ============ HISTORY PANEL ============ */
+.history-header {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin-bottom: .75rem;
+}
+
+.history-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.history-title {
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: .3px;
+}
+
+.history-refresh-btn {
+    padding: .3rem .45rem;
+    background: rgba(99, 102, 241, .08);
+    border: 1px solid rgba(99, 102, 241, .12);
+    color: var(--accent-l);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .2s;
+}
+
+.history-refresh-btn:hover {
+    background: rgba(99, 102, 241, .15);
+    transform: rotate(45deg);
+}
+
+.history-refresh-btn.spinning svg {
+    animation: spin .7s linear infinite;
+}
+
+/* ── History Cards ── */
+.history-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    margin-bottom: .5rem;
+    overflow: hidden;
+    transition: all .25s cubic-bezier(.4, 0, .2, 1);
+    position: relative;
+}
+
+.history-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent), #a855f7);
+    border-radius: 3px 0 0 3px;
+    opacity: 0;
+    transition: opacity .25s;
+}
+
+.history-card:hover {
+    border-color: var(--border-h);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
+}
+
+.history-card:hover::before {
+    opacity: 1;
+}
+
+.history-card-top {
+    padding: .55rem .7rem;
+    display: flex;
+    align-items: flex-start;
+    gap: .55rem;
+}
+
+.history-card-thumb {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, .15), rgba(168, 85, 247, .15));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--accent-l);
+    font-size: .75rem;
+    font-weight: 700;
+    border: 1px solid rgba(99, 102, 241, .12);
+}
+
+.history-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.history-card-title {
+    font-size: .77rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.35;
+    margin-bottom: .2rem;
+}
+
+.history-card-meta {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    font-size: .62rem;
+    color: var(--muted);
+}
+
+.history-card-stat {
+    display: flex;
+    align-items: center;
+    gap: .2rem;
+}
+
+.history-card-stat svg {
+    opacity: .6;
+}
+
+.history-card-date {
+    font-size: .6rem;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.history-card-actions {
+    display: flex;
+    gap: .3rem;
+    padding: .35rem .7rem .45rem;
+    border-top: 1px solid var(--border);
+    background: rgba(255, 255, 255, .01);
+}
+
+.history-btn-open {
+    flex: 1;
+    padding: .3rem .5rem;
+    font-size: .67rem;
+    font-weight: 600;
+    background: rgba(99, 102, 241, .08);
+    color: var(--accent-l);
+    border: 1px solid rgba(99, 102, 241, .1);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .25rem;
+    font-family: inherit;
+}
+
+.history-btn-open:hover {
+    background: rgba(99, 102, 241, .15);
+    border-color: rgba(99, 102, 241, .25);
+}
+
+.history-btn-delete {
+    padding: .3rem .45rem;
+    font-size: .67rem;
+    font-weight: 600;
+    background: rgba(239, 68, 68, .06);
+    color: var(--red);
+    border: 1px solid rgba(239, 68, 68, .1);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .2rem;
+    font-family: inherit;
+}
+
+.history-btn-delete:hover {
+    background: rgba(239, 68, 68, .12);
+    border-color: rgba(239, 68, 68, .2);
+}
+
+/* ── History Empty ── */
+.history-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--muted);
+}
+
+.history-empty svg {
+    margin-bottom: .4rem;
+}
+
+.history-empty p {
+    font-size: .82rem;
+    color: var(--text2);
+    font-weight: 500;
+    margin-bottom: .15rem;
+}
+
+.history-empty span {
+    font-size: .72rem;
+}
+
+/* ── History Loading Skeleton ── */
+.history-skeleton {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: .65rem .7rem;
+    margin-bottom: .5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+
+.history-skeleton-line {
+    height: 10px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.08), rgba(255,255,255,.04));
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.history-skeleton-line.short {
+    width: 40%;
+}
+
+.history-skeleton-line.medium {
+    width: 70%;
+}
+
+/* ── Shared badge ── */
+.history-shared-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .18rem;
+    padding: .08rem .35rem;
+    font-size: .55rem;
+    font-weight: 700;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, .1);
+    color: var(--green);
+    border: 1px solid rgba(16, 185, 129, .15);
+    vertical-align: middle;
+    margin-left: .3rem;
+}
+
+.history-shared-badge svg {
+    width: 8px;
+    height: 8px;
+}

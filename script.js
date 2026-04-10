@@ -1736,3 +1736,222 @@ if (_origRenderAllNotes) {
 document.querySelectorAll('.tab[data-panel="flashcards"]').forEach(tab => {
     tab.addEventListener('click', updateFlashcardButtonState);
 });
+
+// =============================================================================
+// HISTORY FEATURE — View all saved notes across videos
+// =============================================================================
+
+let historyData = [];
+let historyLoaded = false;
+const historyList = document.getElementById('history-list');
+const historyEmpty = document.getElementById('history-empty');
+const historySearch = document.getElementById('history-search');
+const historyRefreshBtn = document.getElementById('history-refresh-btn');
+
+// Format relative date
+function formatHistoryDate(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+}
+
+// Show loading skeleton
+function showHistorySkeleton() {
+    historyList.innerHTML = Array.from({ length: 4 }, () => `
+        <div class="history-skeleton">
+            <div class="history-skeleton-line medium"></div>
+            <div class="history-skeleton-line short"></div>
+        </div>
+    `).join('');
+    historyEmpty.style.display = 'none';
+}
+
+// Fetch history from backend
+async function loadHistory(force = false) {
+    if (!authToken) return;
+    if (historyLoaded && !force) { renderHistory(); return; }
+
+    showHistorySkeleton();
+    historyRefreshBtn?.classList.add('spinning');
+
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/videos`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch history');
+        historyData = await res.json();
+        historyLoaded = true;
+        renderHistory();
+    } catch (err) {
+        historyList.innerHTML = '';
+        historyEmpty.style.display = 'block';
+        historyEmpty.querySelector('p').textContent = 'Failed to load history';
+        historyEmpty.querySelector('span').textContent = err.message;
+        console.error('History load error:', err);
+    } finally {
+        historyRefreshBtn?.classList.remove('spinning');
+    }
+}
+
+// Render history cards
+function renderHistory() {
+    const query = (historySearch?.value || '').trim().toLowerCase();
+    const filtered = query
+        ? historyData.filter(v => (v.videoTitle || '').toLowerCase().includes(query) || (v.pdfTitleVal || '').toLowerCase().includes(query))
+        : historyData;
+
+    historyList.innerHTML = '';
+
+    if (!filtered.length) {
+        historyEmpty.style.display = 'block';
+        if (query) {
+            historyEmpty.querySelector('p').textContent = 'No matching notes';
+            historyEmpty.querySelector('span').textContent = `No results for "${query}"`;
+        } else {
+            historyEmpty.querySelector('p').textContent = 'No saved notes yet';
+            historyEmpty.querySelector('span').textContent = 'Your notes will appear here after you capture frames on YouTube videos';
+        }
+        return;
+    }
+
+    historyEmpty.style.display = 'none';
+
+    filtered.forEach((v, idx) => {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        card.style.animationDelay = `${idx * 30}ms`;
+
+        // Initials for thumbnail
+        const initials = (v.videoTitle || 'UN')
+            .split(' ')
+            .filter(w => w.length > 0)
+            .slice(0, 2)
+            .map(w => w[0].toUpperCase())
+            .join('');
+
+        const sharedBadge = v.sharedRoomId
+            ? `<span class="history-shared-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/></svg>Shared</span>`
+            : '';
+
+        const isCurrentVideo = v.videoId === videoId;
+
+        card.innerHTML = `
+            <div class="history-card-top">
+                <div class="history-card-thumb">${initials}</div>
+                <div class="history-card-info">
+                    <div class="history-card-title" title="${escapeHtml(v.videoTitle)}">${escapeHtml(v.videoTitle)}${sharedBadge}</div>
+                    <div class="history-card-meta">
+                        <span class="history-card-stat">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            ${v.noteCount} note${v.noteCount !== 1 ? 's' : ''}
+                        </span>
+                        <span class="history-card-stat">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            ${v.qaCount} Q&A
+                        </span>
+                        <span class="history-card-date">${formatHistoryDate(v.savedAt)}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="history-card-actions">
+                <button class="history-btn-open" data-vid="${v.videoId}" title="Open this video on YouTube">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    ${isCurrentVideo ? 'Current Video' : 'Open on YouTube'}
+                </button>
+                <button class="history-btn-delete" data-vid="${v.videoId}" title="Delete saved notes">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+
+        historyList.appendChild(card);
+    });
+
+    // Wire open buttons
+    historyList.querySelectorAll('.history-btn-open').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const vid = btn.dataset.vid;
+            if (vid) {
+                window.open(`https://www.youtube.com/watch?v=${vid}`, '_blank');
+            }
+        });
+    });
+
+    // Wire delete buttons
+    historyList.querySelectorAll('.history-btn-delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const vid = btn.dataset.vid;
+            if (!vid) return;
+
+            const card = btn.closest('.history-card');
+            const title = card?.querySelector('.history-card-title')?.textContent || 'this video';
+
+            // Confirm deletion
+            btn.innerHTML = '<span style="font-size:.6rem">Sure?</span>';
+            btn.style.background = 'rgba(239, 68, 68, .15)';
+
+            // Second click to confirm
+            const confirmHandler = async () => {
+                btn.removeEventListener('click', confirmHandler);
+                try {
+                    const res = await fetch(`${BACKEND_URL}/api/videos/${vid}`, {
+                        method: 'DELETE',
+                        headers: authHeaders()
+                    });
+                    if (res.ok || res.status === 404) {
+                        historyData = historyData.filter(v => v.videoId !== vid);
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateX(20px)';
+                        card.style.transition = 'all .25s ease';
+                        setTimeout(() => { card.remove(); renderHistory(); }, 250);
+                        showToast('Notes deleted', 'info');
+                    } else {
+                        showToast('Delete failed', 'error');
+                    }
+                } catch (err) {
+                    showToast('Delete failed: ' + err.message, 'error');
+                }
+            };
+
+            // Wait a tick then add confirm handler
+            setTimeout(() => {
+                btn.addEventListener('click', confirmHandler, { once: true });
+                // Reset after 3 seconds if not confirmed
+                setTimeout(() => {
+                    btn.removeEventListener('click', confirmHandler);
+                    btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>`;
+                    btn.style.background = '';
+                }, 3000);
+            }, 50);
+        });
+    });
+}
+
+// Search filtering
+historySearch?.addEventListener('input', () => renderHistory());
+
+// Refresh button
+historyRefreshBtn?.addEventListener('click', () => loadHistory(true));
+
+// Auto-load history when History tab is clicked
+document.querySelectorAll('.tab[data-panel="history"]').forEach(tab => {
+    tab.addEventListener('click', () => loadHistory());
+});

@@ -160,6 +160,42 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
 // VIDEO DATA (per-user)
 // =============================================================================
 
+// List all saved videos for current user (lightweight — no snapshot data)
+app.get('/api/videos', requireAuth, async (req, res) => {
+    try {
+        const docs = await Video.find(
+            { userId: req.userId },
+            {
+                videoId: 1,
+                videoTitle: 1,
+                savedAt: 1,
+                pdfTitleVal: 1,
+                sharedRoomId: 1,
+                'timestamps.id': 1,
+                'timestamps.timestamp': 1,
+                'timestamps.videoTime': 1,
+                'timestamps.note': 1,
+                'aiResponses.question': 1,
+                'aiResponses.time': 1
+            }
+        ).sort({ savedAt: -1 }).lean();
+
+        const result = docs.map(doc => ({
+            videoId: doc.videoId,
+            videoTitle: doc.videoTitle || 'Untitled Video',
+            savedAt: doc.savedAt,
+            pdfTitleVal: doc.pdfTitleVal || '',
+            sharedRoomId: doc.sharedRoomId || '',
+            noteCount: (doc.timestamps || []).length,
+            qaCount: (doc.aiResponses || []).length
+        }));
+
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Get saved data for a video (for current user)
 app.get('/api/videos/:videoId', requireAuth, async (req, res) => {
     try {
@@ -190,6 +226,16 @@ app.put('/api/videos/:videoId', requireAuth, async (req, res) => {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
         res.json({ success: true, data: doc });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete saved data for a video (for current user)
+app.delete('/api/videos/:videoId', requireAuth, async (req, res) => {
+    try {
+        await Video.deleteOne({ videoId: req.params.videoId, userId: req.userId });
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
