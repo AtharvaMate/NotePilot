@@ -1634,7 +1634,11 @@ async function generateFlashcards() {
             headers: authHeaders(),
             body: JSON.stringify({ context })
         });
-        if (!res.ok) throw new Error('Flashcard generation failed: ' + res.status);
+        if (!res.ok) {
+            let errMsg = `Flashcard generation failed: ${res.status}`;
+            try { const errData = await res.json(); if (errData.error) errMsg = errData.error; } catch (_) {}
+            throw new Error(errMsg);
+        }
         const data = await res.json();
 
         if (!Array.isArray(data?.cards) || !data.cards.length) throw new Error('No flashcards returned');

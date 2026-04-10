@@ -519,7 +519,7 @@ app.post('/api/ai/quiz', async (req, res) => {
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         let clean = jsonMatch ? jsonMatch[0] : raw;
         // Basic sanitization for common unescaped LaTeX backslashes if AI forgets
-        clean = clean.replace(/\\(?!["\\/bfnrt])/g, '\\\\');
+        clean = clean.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
         const data = JSON.parse(clean);
         res.json(data);
     } catch (err) {
@@ -538,7 +538,7 @@ app.post('/api/ai/flashcards', async (req, res) => {
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         let clean = jsonMatch ? jsonMatch[0] : raw;
         // Basic sanitization for common unescaped LaTeX backslashes if AI forgets
-        clean = clean.replace(/\\(?!["\\/bfnrt])/g, '\\\\');
+        clean = clean.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
         const data = JSON.parse(clean);
         res.json(data);
     } catch (err) {
