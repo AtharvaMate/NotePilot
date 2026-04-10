@@ -164,9 +164,72 @@ async function handleAuthSubmit() {
 authSubmitBtn.addEventListener('click', handleAuthSubmit);
 authPasswordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAuthSubmit(); });
 
-// Google auth (placeholder — needs client ID)
-googleSignInBtn.addEventListener('click', () => {
-    showToast('Google Sign-In requires a Client ID. Please set up OAuth in Google Cloud Console.', 'warn');
+// Google auth via chrome.identity.launchWebAuthFlow
+googleSignInBtn.addEventListener('click', async () => {
+    if (!GOOGLE_CLIENT_ID) {
+        showToast('Google Sign-In requires a Client ID. Set up OAuth in Google Cloud Console.', 'warn');
+        return;
+    }
+
+    googleSignInBtn.disabled = true;
+    const origBtnHtml = googleSignInBtn.innerHTML;
+    googleSignInBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Signing in...';
+    setAuthError('');
+
+    try {
+        const redirectUrl = chrome.identity.getRedirectURL();
+        const nonce = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+        const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+        authUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
+        authUrl.searchParams.set('response_type', 'id_token');
+        authUrl.searchParams.set('redirect_uri', redirectUrl);
+        authUrl.searchParams.set('scope', 'openid email profile');
+        authUrl.searchParams.set('nonce', nonce);
+        authUrl.searchParams.set('prompt', 'select_account');
+
+        const responseUrl = await chrome.identity.launchWebAuthFlow({
+            url: authUrl.toString(),
+            interactive: true
+        });
+
+        // Extract id_token from the redirect URL hash fragment
+        const hashParams = new URLSearchParams(new URL(responseUrl).hash.substring(1));
+        const idToken = hashParams.get('id_token');
+
+        if (!idToken) throw new Error('No ID token received from Google');
+
+        // Send the Google ID token to the backend for verification
+        const res = await fetch(`${BACKEND_URL}/api/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: idToken })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Google auth failed');
+
+        // Store session
+        authToken = data.token;
+        currentUser = data.user;
+        localStorage.setItem('np_token', authToken);
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ np_token: authToken });
+        }
+        hideAuthOverlay();
+        showUserInfo();
+        detectVideo();
+        showToast(`Welcome, ${currentUser.name || currentUser.email}!`, 'success');
+    } catch (err) {
+        // User closed popup — not an error
+        if (err.message && (err.message.includes('canceled') || err.message.includes('cancelled') || err.message.includes('closed'))) {
+            // silently ignore
+        } else {
+            setAuthError('Google Sign-In failed: ' + (err.message || 'Unknown error').slice(0, 120));
+        }
+    } finally {
+        googleSignInBtn.disabled = false;
+        googleSignInBtn.innerHTML = origBtnHtml;
+    }
 });
 
 function showUserInfo() {
