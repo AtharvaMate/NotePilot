@@ -191,7 +191,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error('API error ' + res.status);
+      if (!res.ok) {
+        let errMsg = 'API error ' + res.status;
+        try { const e = await res.json(); if (e.error) errMsg = e.error; } catch(_) {}
+        throw new Error(errMsg);
+      }
       return res.json();
     }
 
@@ -543,7 +547,11 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ context: ctx })
             });
-            if (!res.ok) throw new Error('Generation failed');
+            if (!res.ok) {
+              let errMsg = 'Generation failed: ' + res.status;
+              try { const e = await res.json(); if (e.error) errMsg = e.error; } catch(_) {}
+              throw new Error(errMsg);
+            }
             const data = await res.json();
             if (!data?.cards?.length) throw new Error('No cards returned');
 

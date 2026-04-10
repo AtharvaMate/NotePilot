@@ -508,21 +508,47 @@ app.post('/api/ai/vision', requireAuth, async (req, res) => {
     }
 });
 
+// =============================================================================
+// ROBUST AI JSON PARSER
+// =============================================================================
+
+function safeParseAIJson(raw) {
+    // Strip markdown code fences
+    let text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+
+    // Extract first JSON object
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON object found in AI response');
+    text = jsonMatch[0];
+
+    // Try parsing as-is first
+    try { return JSON.parse(text); } catch (_) { /* continue */ }
+
+    // Fix trailing commas before } or ]
+    let cleaned = text.replace(/,\s*([}\]])/g, '$1');
+    try { return JSON.parse(cleaned); } catch (_) { /* continue */ }
+
+    // Fix unescaped backslashes (LaTeX like \frac, \sum, etc.)
+    cleaned = cleaned.replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+    try { return JSON.parse(cleaned); } catch (_) { /* continue */ }
+
+    // Last resort: strip all backslashes
+    cleaned = text.replace(/\\/g, '');
+    return JSON.parse(cleaned);
+}
+
 // Quiz generation AI (public — used from room viewer)
 app.post('/api/ai/quiz', async (req, res) => {
     try {
         const { context } = req.body;
         const raw = await proxyGroq([
-            { role: 'system', content: 'You are an expert quiz generator. Respond ONLY with valid JSON — no markdown fences, no explanation. If using LaTeX, you MUST double-escape ALL backslashes (e.g. \\\\frac instead of \\frac) to avoid breaking JSON.parse.' },
-            { role: 'user', content: `Generate exactly 10 multiple-choice questions from this video content.\n\n${context}\n\nReturn ONLY this JSON:\n{"quizTitle":"Short title","questions":[{"topic":"2-3 word tag","difficulty":"easy|medium|hard","question":"Text ≤25 words","options":["A","B","C","D"],"correctIndex":0,"explanation":"1-2 sentences.","timestampHint":"e.g. 3:45 or null"}]}\n\nRules: exactly 10 questions (3 easy,5 medium,2 hard); cover the FULL video; plausible distractors; if math appears include 2 equation questions; correctIndex is 0-based; use LaTeX for math (double-escape backslashes!).` }
+            { role: 'system', content: 'You are an expert quiz generator. Respond ONLY with valid JSON. No markdown fences. No explanation text. Do NOT use LaTeX or backslash commands in your output. Write math in plain text instead.' },
+            { role: 'user', content: `Generate exactly 10 multiple-choice questions from this video content.\n\n${context}\n\nReturn ONLY this JSON:\n{"quizTitle":"Short title","questions":[{"topic":"2-3 word tag","difficulty":"easy|medium|hard","question":"Text","options":["A","B","C","D"],"correctIndex":0,"explanation":"1-2 sentences.","timestampHint":"e.g. 3:45 or null"}]}\n\nRules: exactly 10 questions (3 easy, 5 medium, 2 hard); cover the FULL video; plausible distractors; correctIndex is 0-based. Write math in plain text, NOT LaTeX.` }
         ], { temperature: 0.35, max_tokens: 3000 });
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        let clean = jsonMatch ? jsonMatch[0] : raw;
-        // Basic sanitization for common unescaped LaTeX backslashes if AI forgets
-        clean = clean.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
-        const data = JSON.parse(clean);
+        const data = safeParseAIJson(raw);
         res.json(data);
     } catch (err) {
+        console.error('[Quiz AI Error]', err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -532,16 +558,13 @@ app.post('/api/ai/flashcards', async (req, res) => {
     try {
         const { context } = req.body;
         const raw = await proxyGroq([
-            { role: 'system', content: 'You are an expert flashcard creator for students. Respond ONLY with valid JSON — no markdown fences, no explanation. If using LaTeX, you MUST double-escape ALL backslashes (e.g. \\\\frac instead of \\frac) to avoid breaking JSON.parse.' },
-            { role: 'user', content: `Generate 15 study flashcards from this video content.\n\n${context}\n\nReturn ONLY this JSON:\n{"title":"Short descriptive title","cards":[{"front":"Question or term","back":"Answer or definition","topic":"2-3 word tag"}]}\n\nRules: exactly 15 cards; mix of definitions, concepts, and application questions; cover the FULL content; front should be concise (≤20 words); back should be clear but brief (≤40 words); use LaTeX for math (double-escape backslashes!).` }
+            { role: 'system', content: 'You are an expert flashcard creator for students. Respond ONLY with valid JSON. No markdown fences. No explanation text. Do NOT use LaTeX or backslash commands. Write math in plain text instead.' },
+            { role: 'user', content: `Generate 15 study flashcards from this video content.\n\n${context}\n\nReturn ONLY this JSON:\n{"title":"Short descriptive title","cards":[{"front":"Question or term","back":"Answer or definition","topic":"2-3 word tag"}]}\n\nRules: exactly 15 cards; mix of definitions, concepts, and application questions; cover the FULL content; front concise; back brief. Write math in plain text, NOT LaTeX.` }
         ], { temperature: 0.35, max_tokens: 3000 });
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        let clean = jsonMatch ? jsonMatch[0] : raw;
-        // Basic sanitization for common unescaped LaTeX backslashes if AI forgets
-        clean = clean.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
-        const data = JSON.parse(clean);
+        const data = safeParseAIJson(raw);
         res.json(data);
     } catch (err) {
+        console.error('[Flashcard AI Error]', err.message);
         res.status(500).json({ error: err.message });
     }
 });
