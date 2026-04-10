@@ -491,18 +491,6 @@ GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 
 ---
 
-## ⚠️ Known Limitations
-
-- Only works on `youtube.com/watch` URLs
-- Frame capture requires the YouTube tab to be visible (Chrome restriction)
-- Transcript-based quiz requires YouTube captions to be available
-- PDF math rendering is sequential — many equations = slower generation
-- Groq free tier has rate limits; heavy usage may need a paid plan
-- Google Sign-In requires redirect URI registration in Cloud Console
-- Render free tier cold-starts (15–30s delay on first request)
-
----
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please:
