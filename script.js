@@ -764,24 +764,24 @@ async function makePDF() {
         const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
         const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
         const M = 18, CW = pw - M * 2;
-        const ACCENT = [99, 102, 241], ACCENT2 = [168, 85, 247];
-        const TEXT = [30, 30, 52], TEXT2 = [80, 80, 110], MUTED = [130, 130, 160];
-        const CARD_BG = [245, 245, 252], BORDER = [220, 220, 238];
+        const ACCENT = [229, 9, 20], ACCENT2 = [184, 29, 36];
+        const TEXT = [30, 30, 30], TEXT2 = [80, 80, 80], MUTED = [130, 130, 130];
+        const CARD_BG = [248, 248, 248], BORDER = [220, 220, 220];
         let y = 0;
         const title = pdfTitle.value.trim() || videoTitle || 'Study Notes';
 
-        pdf.setFillColor(17, 17, 30); pdf.rect(0, 0, pw, 52, 'F');
-        pdf.setFillColor(13, 13, 22); pdf.rect(0, 36, pw, 16, 'F');
+        pdf.setFillColor(10, 10, 10); pdf.rect(0, 0, pw, 52, 'F');
+        pdf.setFillColor(20, 20, 20); pdf.rect(0, 36, pw, 16, 'F');
         pdf.setFillColor(...ACCENT); pdf.rect(0, 0, pw, 2, 'F');
         pdf.setFillColor(...ACCENT); pdf.roundedRect(M, 8, 8, 8, 1.5, 1.5, 'F');
         pdf.setFillColor(...ACCENT2); pdf.roundedRect(M + 1.5, 9.5, 5, 5, 1, 1, 'F');
-        pdf.setFontSize(7); pdf.setFont(undefined, 'bold'); pdf.setTextColor(129, 140, 248);
+        pdf.setFontSize(7); pdf.setFont(undefined, 'bold'); pdf.setTextColor(229, 9, 20);
         pdf.text('NOTEPILOT', M + 11, 13.5);
-        pdf.setFont(undefined, 'bold'); pdf.setTextColor(238, 238, 245); pdf.setFontSize(17);
+        pdf.setFont(undefined, 'bold'); pdf.setTextColor(240, 240, 240); pdf.setFontSize(17);
         const titleLines = pdf.splitTextToSize(title, pw - M * 2 - 20);
         let ty = 24;
         for (const tl of titleLines) { pdf.text(tl, pw / 2, ty, { align: 'center' }); ty += 8; }
-        pdf.setFont(undefined, 'normal'); pdf.setFontSize(8); pdf.setTextColor(129, 140, 248);
+        pdf.setFont(undefined, 'normal'); pdf.setFontSize(8); pdf.setTextColor(229, 60, 60);
         const userGaveTitle = pdfTitle.value.trim() && pdfTitle.value.trim() !== videoTitle;
         const sub = (userGaveTitle && videoTitle) ? `${videoTitle}   ·   ${new Date().toLocaleDateString()}` : new Date().toLocaleDateString();
         pdf.text(pdf.splitTextToSize(sub, pw - 40), pw / 2, Math.max(ty + 1, 44), { align: 'center' });
@@ -802,7 +802,7 @@ async function makePDF() {
         const drawSection = (label) => {
             if (y > ph - 35) { pdf.addPage(); y = M; }
             y += 3;
-            pdf.setFillColor(240, 240, 252); pdf.roundedRect(M, y - 4.5, CW, 10, 2, 2, 'F');
+            pdf.setFillColor(245, 245, 245); pdf.roundedRect(M, y - 4.5, CW, 10, 2, 2, 'F');
             pdf.setFillColor(...ACCENT); pdf.roundedRect(M, y - 4.5, 3.5, 10, 1, 1, 'F');
             pdf.setFont(undefined, 'bold'); pdf.setFontSize(10.5); pdf.setTextColor(...ACCENT);
             pdf.text(`>  ${label}`, M + 8, y + 1.5);
@@ -842,13 +842,13 @@ async function makePDF() {
                 }
                 if ((ts.note || '').trim()) { pdf.setFontSize(8.5); pdf.setTextColor(...TEXT2); y = await addTextWithNativeMathPdf(pdf, ts.note.trim(), M + 7, y, CW - 16, 8.5, ...TEXT2, ph, M); y += 3; }
                 if (ts.ocrText) {
-                    pdf.setFillColor(230, 228, 252); pdf.roundedRect(M + 7, y - 2, CW - 14, 7, 1.2, 1.2, 'F');
+                    pdf.setFillColor(250, 235, 235); pdf.roundedRect(M + 7, y - 2, CW - 14, 7, 1.2, 1.2, 'F');
                     pdf.setFontSize(7); pdf.setFont(undefined, 'bold'); pdf.setTextColor(...ACCENT);
                     pdf.text('EXTRACTED TEXT', M + 10, y + 2); pdf.setFont(undefined, 'normal'); y += 8;
                     y = await addTextWithNativeMathPdf(pdf, ts.ocrText, M + 9, y, CW - 18, 7.5, ...TEXT2, ph, M); y += 3;
                 }
                 if (ts.aiExplanation) {
-                    pdf.setFillColor(245, 235, 255); pdf.roundedRect(M + 7, y - 2, CW - 14, 7, 1.2, 1.2, 'F');
+                    pdf.setFillColor(255, 240, 240); pdf.roundedRect(M + 7, y - 2, CW - 14, 7, 1.2, 1.2, 'F');
                     pdf.setFontSize(7); pdf.setFont(undefined, 'bold'); pdf.setTextColor(...ACCENT2);
                     pdf.text('AI EXPLANATION', M + 10, y + 2); pdf.setFont(undefined, 'normal'); y += 8;
                     y = await addTextWithNativeMathPdf(pdf, ts.aiExplanation, M + 9, y, CW - 18, 7.5, ...TEXT2, ph, M); y += 3;
@@ -876,7 +876,7 @@ async function makePDF() {
             for (let i = 0; i < selectedQA.length; i++) {
                 const qa = selectedQA[i];
                 if (y > ph - 30) { pdf.addPage(); y = M; }
-                pdf.setFillColor(230, 228, 252); pdf.roundedRect(M, y - 3.5, CW, 8, 1.5, 1.5, 'F');
+                pdf.setFillColor(250, 235, 235); pdf.roundedRect(M, y - 3.5, CW, 8, 1.5, 1.5, 'F');
                 pdf.setDrawColor(...ACCENT); pdf.setLineWidth(0.2); pdf.roundedRect(M, y - 3.5, CW, 8, 1.5, 1.5, 'D');
                 pdf.setFont(undefined, 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...ACCENT);
                 pdf.text(`Q${i + 1}`, M + 3, y + 1.2);
@@ -893,7 +893,7 @@ async function makePDF() {
         const totalPages = pdf.internal.getNumberOfPages();
         for (let p = 1; p <= totalPages; p++) {
             pdf.setPage(p);
-            pdf.setFillColor(245, 245, 252); pdf.rect(0, ph - 10, pw, 10, 'F');
+            pdf.setFillColor(245, 245, 245); pdf.rect(0, ph - 10, pw, 10, 'F');
             pdf.setFillColor(...ACCENT); pdf.rect(0, ph - 10, pw, 0.7, 'F');
             pdf.setFontSize(6.5); pdf.setFont(undefined, 'normal');
             pdf.setTextColor(...MUTED); pdf.text('Generated by NotePilot', M, ph - 4.5);
@@ -1681,7 +1681,7 @@ function renderFlashcards(cards, title) {
             </div>
             <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
                 <button class="btn" id="fc-prev" style="flex:1;justify-content:center;gap:4px;padding:8px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:.75rem" ${currentIdx === 0 ? 'disabled' : ''}>← Prev</button>
-                <button class="btn" id="fc-next" style="flex:1;justify-content:center;gap:4px;padding:8px;background:linear-gradient(135deg,var(--accent),#a855f7);color:#fff;font-size:.75rem;border:none">${currentIdx === total - 1 ? '↻ Restart' : 'Next →'}</button>
+                <button class="btn" id="fc-next" style="flex:1;justify-content:center;gap:4px;padding:8px;background:linear-gradient(135deg,#E50914,#B81D24);color:#fff;font-size:.75rem;border:none">${currentIdx === total - 1 ? '↻ Restart' : 'Next →'}</button>
             </div>
         `;
 
