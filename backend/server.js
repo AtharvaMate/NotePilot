@@ -516,7 +516,8 @@ app.post('/api/ai/quiz', async (req, res) => {
             { role: 'system', content: 'You are an expert quiz generator. Respond ONLY with valid JSON — no markdown fences, no explanation.' },
             { role: 'user', content: `Generate exactly 10 multiple-choice questions from this video content.\n\n${context}\n\nReturn ONLY this JSON:\n{"quizTitle":"Short title","questions":[{"topic":"2-3 word tag","difficulty":"easy|medium|hard","question":"Text ≤25 words","options":["A","B","C","D"],"correctIndex":0,"explanation":"1-2 sentences.","timestampHint":"e.g. 3:45 or null"}]}\n\nRules: exactly 10 questions (3 easy,5 medium,2 hard); cover the FULL video; plausible distractors; if math appears include 2 equation questions; correctIndex is 0-based.` }
         ], { temperature: 0.35, max_tokens: 3000 });
-        const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        const clean = jsonMatch ? jsonMatch[0] : raw;
         const data = JSON.parse(clean);
         res.json(data);
     } catch (err) {
@@ -532,7 +533,8 @@ app.post('/api/ai/flashcards', async (req, res) => {
             { role: 'system', content: 'You are an expert flashcard creator for students. Respond ONLY with valid JSON — no markdown fences, no explanation.' },
             { role: 'user', content: `Generate 15 study flashcards from this video content.\n\n${context}\n\nReturn ONLY this JSON:\n{"title":"Short descriptive title","cards":[{"front":"Question or term","back":"Answer or definition","topic":"2-3 word tag"}]}\n\nRules: exactly 15 cards; mix of definitions, concepts, and application questions; cover the FULL content; front should be concise (≤20 words); back should be clear but brief (≤40 words); use LaTeX for math.` }
         ], { temperature: 0.35, max_tokens: 3000 });
-        const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        const clean = jsonMatch ? jsonMatch[0] : raw;
         const data = JSON.parse(clean);
         res.json(data);
     } catch (err) {
