@@ -267,11 +267,13 @@
             const existing = (loadRes.ok) ? await loadRes.json() : null;
             const timestamps = existing?.timestamps || [];
             const aiResponses = existing?.aiResponses || [];
+            const roomId = existing?.sharedRoomId || '';
 
-            timestamps.push({
+            const newNote = {
                 id: Date.now().toString(), timestamp: label, videoTime,
                 note: note || '', snapshot, ocrText: ''
-            });
+            };
+            timestamps.push(newNote);
 
             // Save back to backend — preserve all existing fields (sharedRoomId, pdfTitleVal, etc.)
             const saveRes = await fetch(`${CONTENT_BACKEND_URL}/api/videos/${vId}`, {
@@ -282,13 +284,35 @@
                     timestamps,
                     aiResponses,
                     pdfTitleVal: existing?.pdfTitleVal || ytTitle,
-                    sharedRoomId: existing?.sharedRoomId || ''
+                    sharedRoomId: roomId
                 })
             });
 
             if (!saveRes.ok) {
                 console.error('[NotePilot] Save failed:', saveRes.status);
                 showPlayerToast('⚠ Save failed — check login');
+            }
+
+            // Sync new note to shared room if one exists for this video
+            if (roomId && token) {
+                try {
+                    const noteIdx = timestamps.length - 1;
+                    await fetch(`${CONTENT_BACKEND_URL}/api/rooms/${roomId}/notes/${noteIdx}`, {
+                        method: 'PUT',
+                        headers,
+                        body: JSON.stringify({
+                            id: newNote.id,
+                            timestamp: newNote.timestamp,
+                            videoTime: newNote.videoTime,
+                            note: newNote.note,
+                            ocrText: '',
+                            aiExplanation: '',
+                            snapshot: snapshot
+                        })
+                    });
+                } catch (roomErr) {
+                    console.warn('[NotePilot] Room sync failed:', roomErr.message);
+                }
             }
         } catch (err) {
             console.error('[NotePilot] saveCapture error:', err);

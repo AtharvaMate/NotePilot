@@ -378,7 +378,7 @@ async function captureSnapshot() {
         renderNotes();
         updateExport();
         await saveData();
-        pushNoteToRoom(timestamps[timestamps.length - 1]);  // live-sync if room active
+        await pushNoteToRoom(timestamps[timestamps.length - 1]);  // live-sync if room active
         showToast(`Captured at ${label}`, 'success');
     } catch (err) { showToast('Capture failed — try refreshing YouTube', 'error'); }
 }
