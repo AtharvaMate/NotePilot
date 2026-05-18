@@ -16,6 +16,46 @@ function authHeaders() {
     return h;
 }
 
+// ============ CLOUDINARY UPLOAD ============
+// Uploads a base64 data URL to Cloudinary via the backend proxy.
+// Returns the Cloudinary CDN URL, or null if upload fails (falls back to base64).
+async function uploadToCloudinary(dataUrl) {
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/upload-image`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ dataUrl })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.warn('[NotePilot] Cloudinary upload failed:', err.error || res.status);
+            return null;
+        }
+        const data = await res.json();
+        return data.url || null;
+    } catch (err) {
+        console.warn('[NotePilot] Cloudinary upload error:', err.message);
+        return null;
+    }
+}
+
+// ============ DEBOUNCED SAVE ============
+// Batches rapid saveData() calls (e.g. during OCR / AI explanation) into one network request.
+let _saveDebounceTimer = null;
+function debouncedSaveData() {
+    clearTimeout(_saveDebounceTimer);
+    _saveDebounceTimer = setTimeout(() => saveData(), 1500);
+}
+
+// Opt #5: Build a Cloudinary thumbnail URL with w_400, auto quality & format
+// for fast popup display. Falls back to the original URL if it's not Cloudinary.
+function cloudinaryThumb(url) {
+    if (!url || url.startsWith('data:')) return url; // base64 — return as-is
+    // Insert Cloudinary transformations before the version/public_id segment
+    // e.g. https://res.cloudinary.com/<cloud>/image/upload/<transforms>/v.../notepilot/...
+    return url.replace('/image/upload/', '/image/upload/w_400,q_auto,f_auto/');
+}
+
 // ============ AI HELPER (via backend proxy) ============
 async function callAI(messages, opts = {}) {
     const res = await fetch(`${BACKEND_URL}/api/ai/chat`, {
@@ -374,7 +414,15 @@ async function captureSnapshot() {
         const t = Math.floor(info.currentTime);
         const label = `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}`;
         if (info.title && !videoTitle) { videoTitle = info.title; vidTitleEl.textContent = videoTitle; }
-        timestamps.push({ id: Date.now().toString(), timestamp: label, videoTime: t, note: '', snapshot: frame, ocrText: '' });
+
+        // Show uploading status while Cloudinary upload is in-flight
+        showToast(`Uploading snapshot...`, 'info');
+        const cloudUrl = await uploadToCloudinary(frame);
+        // Use Cloudinary URL if upload succeeded, otherwise fall back to base64
+        const snapshot = cloudUrl || frame;
+        if (!cloudUrl) console.warn('[NotePilot] Falling back to base64 snapshot storage');
+
+        timestamps.push({ id: Date.now().toString(), timestamp: label, videoTime: t, note: '', snapshot, ocrText: '' });
         renderNotes();
         updateExport();
         await saveData();
@@ -599,10 +647,15 @@ function renderNotes() {
             ? '<button class="btn-explain" data-id="' + ts.id + '"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Explain</button>'
             : '';
 
-        const hasSnap = ts.snapshot && ts.snapshot.startsWith('data:');
+        // hasSnap: true for both Cloudinary URLs and legacy base64 blobs
+        const hasSnap = ts.snapshot && (ts.snapshot.startsWith('data:') || ts.snapshot.startsWith('http'));
+
+        const snapSrc = ts.snapshot && ts.snapshot.startsWith('http')
+            ? cloudinaryThumb(ts.snapshot)   // Opt #5: serve a 400px-wide thumbnail in the popup
+            : ts.snapshot;                   // legacy base64 — use as-is
 
         const snapHtml = hasSnap
-            ? `<div class="cap-img"><img src="${ts.snapshot}" alt="Frame at ${ts.timestamp}"></div>`
+            ? `<div class="cap-img"><img src="${snapSrc}" alt="Frame at ${ts.timestamp}" loading="lazy"></div>`
             : `<div class="cap-img-deleted">
                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
                    <span>Snapshot deleted</span>
@@ -718,7 +771,7 @@ async function explainContent(tsId, btnEl) {
             { role: 'user', content: 'Here is text extracted from a video slide:\n\n' + ts.ocrText + '\n\nExplain this content clearly for a student. Break down complex concepts and explain any formulas.' }
         ]);
         ts.aiExplanation = explanation.trim();
-        await saveData(); renderNotes();
+        debouncedSaveData(); renderNotes();
         syncNoteTextToRoom(ts);
         showToast('Explanation generated!', 'success');
     } catch (err) {

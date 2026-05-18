@@ -4,6 +4,15 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const cloudinary = require('cloudinary').v2;
+
+// ── Cloudinary configuration ──
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key:    process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true
+});
 
 const User = require('./models/User');
 const Video = require('./models/Video');
@@ -20,7 +29,8 @@ const MODEL_VISION = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
 // ── Middleware ──
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+// Images are now uploaded to Cloudinary, so JSON payloads are small
+app.use(express.json({ limit: '15mb' }));
 
 // ── JWT helpers ──
 function signToken(userId) {
@@ -153,6 +163,36 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
         res.json({ id: user._id, email: user.email, name: user.name, avatar: user.avatar });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+// =============================================================================
+// IMAGE UPLOAD (Cloudinary)
+// =============================================================================
+
+// Upload a base64 snapshot to Cloudinary and return the CDN URL
+app.post('/api/upload-image', requireAuth, async (req, res) => {
+    try {
+        const { dataUrl } = req.body;
+        if (!dataUrl || !dataUrl.startsWith('data:image')) {
+            return res.status(400).json({ error: 'Invalid image data' });
+        }
+
+        if (!process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME === 'your_cloud_name') {
+            return res.status(503).json({ error: 'Cloudinary not configured — set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET in .env' });
+        }
+
+        const result = await cloudinary.uploader.upload(dataUrl, {
+            folder: 'notepilot',
+            resource_type: 'image',
+            // Auto-format and quality for best delivery speed
+            transformation: [{ quality: 'auto', fetch_format: 'auto' }]
+        });
+
+        res.json({ url: result.secure_url });
+    } catch (err) {
+        console.error('[Cloudinary Upload Error]', err.message);
+        res.status(500).json({ error: 'Image upload failed: ' + err.message });
     }
 });
 

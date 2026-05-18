@@ -1,0 +1,236 @@
+<svg width="900" height="540" viewBox="0 0 900 540" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="abg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8f9fb"/>
+      <stop offset="100%" stop-color="#f0f1f5"/>
+    </linearGradient>
+    <linearGradient id="aacc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#E50914"/>
+      <stop offset="100%" stop-color="#B81D24"/>
+    </linearGradient>
+    <marker id="arrowR" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(229,9,20,0.6)"/>
+    </marker>
+    <marker id="arrowG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(16,163,110,0.6)"/>
+    </marker>
+    <marker id="arrowP" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(139,60,220,0.6)"/>
+    </marker>
+  </defs>
+
+  <rect width="900" height="540" fill="url(#abg)" rx="14"/>
+
+  <text x="450" y="28" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="2.5" fill="#9095a8">SYSTEM ARCHITECTURE</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- CHROME EXTENSION (LEFT)                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <rect x="24" y="48" width="340" height="460" rx="12" fill="#ffffff" stroke="rgba(229,9,20,0.25)" stroke-width="1.2"/>
+  <!-- Title bar -->
+  <rect x="24" y="48" width="340" height="36" rx="12" fill="rgba(229,9,20,0.07)"/>
+  <rect x="24" y="72" width="340" height="12" fill="rgba(229,9,20,0.07)"/>
+  <rect x="44" y="56" width="18" height="18" rx="5" fill="#E50914" opacity="0.9"/>
+  <text x="48" y="69" font-size="7" font-weight="900" fill="white">NP</text>
+  <text x="70" y="70" font-size="13" font-weight="800" fill="#E50914" letter-spacing="1">Chrome Extension</text>
+  <text x="316" y="70" font-size="8" fill="#9095a8">Manifest V3</text>
+
+  <!-- Popup UI box -->
+  <rect x="42" y="96" width="148" height="44" rx="8" fill="rgba(229,9,20,0.05)" stroke="rgba(229,9,20,0.18)" stroke-width="0.8"/>
+  <text x="116" y="113" text-anchor="middle" font-size="10" font-weight="700" fill="#d6232e">popup (index.html)</text>
+  <text x="116" y="128" text-anchor="middle" font-size="8" fill="#7a7e90">Notes · Chat · Quiz · Cards</text>
+
+  <!-- Content Script box -->
+  <rect x="198" y="96" width="148" height="44" rx="8" fill="rgba(229,9,20,0.05)" stroke="rgba(229,9,20,0.18)" stroke-width="0.8"/>
+  <text x="272" y="113" text-anchor="middle" font-size="10" font-weight="700" fill="#d6232e">content.js</text>
+  <text x="272" y="128" text-anchor="middle" font-size="8" fill="#7a7e90">YT inject · Transcript</text>
+
+  <!-- Background worker -->
+  <rect x="42" y="150" width="148" height="32" rx="6" fill="rgba(212,135,0,0.06)" stroke="rgba(212,135,0,0.18)" stroke-width="0.8"/>
+  <text x="116" y="171" text-anchor="middle" font-size="9" font-weight="600" fill="#c07c00">background.js (SW)</text>
+
+  <!-- script.js -->
+  <rect x="198" y="150" width="148" height="32" rx="6" fill="rgba(212,135,0,0.06)" stroke="rgba(212,135,0,0.18)" stroke-width="0.8"/>
+  <text x="272" y="171" text-anchor="middle" font-size="9" font-weight="600" fill="#c07c00">script.js (logic)</text>
+
+  <!-- Feature modules -->
+  <text x="42" y="204" font-size="8" font-weight="700" fill="#9095a8" letter-spacing="1">FEATURES</text>
+
+  <rect x="42" y="214" width="92" height="26" rx="5" fill="rgba(79,70,229,0.06)" stroke="rgba(79,70,229,0.16)" stroke-width="0.8"/>
+  <text x="88" y="231" text-anchor="middle" font-size="8.5" fill="#5b52e0">📸 Capture</text>
+
+  <rect x="142" y="214" width="74" height="26" rx="5" fill="rgba(79,70,229,0.06)" stroke="rgba(79,70,229,0.16)" stroke-width="0.8"/>
+  <text x="179" y="231" text-anchor="middle" font-size="8.5" fill="#5b52e0">🔍 OCR</text>
+
+  <rect x="224" y="214" width="128" height="26" rx="5" fill="rgba(79,70,229,0.06)" stroke="rgba(79,70,229,0.16)" stroke-width="0.8"/>
+  <text x="288" y="231" text-anchor="middle" font-size="8.5" fill="#5b52e0">💬 AI Chat</text>
+
+  <rect x="42" y="248" width="92" height="26" rx="5" fill="rgba(79,70,229,0.06)" stroke="rgba(79,70,229,0.16)" stroke-width="0.8"/>
+  <text x="88" y="265" text-anchor="middle" font-size="8.5" fill="#5b52e0">❓ Quiz</text>
+
+  <rect x="142" y="248" width="92" height="26" rx="5" fill="rgba(79,70,229,0.06)" stroke="rgba(79,70,229,0.16)" stroke-width="0.8"/>
+  <text x="188" y="265" text-anchor="middle" font-size="8.5" fill="#5b52e0">📇 Flashcards</text>
+
+  <rect x="242" y="248" width="110" height="26" rx="5" fill="rgba(79,70,229,0.06)" stroke="rgba(79,70,229,0.16)" stroke-width="0.8"/>
+  <text x="297" y="265" text-anchor="middle" font-size="8.5" fill="#5b52e0">🔗 Share Room</text>
+
+  <rect x="42" y="282" width="92" height="26" rx="5" fill="rgba(16,163,110,0.06)" stroke="rgba(16,163,110,0.16)" stroke-width="0.8"/>
+  <text x="88" y="299" text-anchor="middle" font-size="8.5" fill="#0d9668">📄 PDF Export</text>
+
+  <rect x="142" y="282" width="92" height="26" rx="5" fill="rgba(16,163,110,0.06)" stroke="rgba(16,163,110,0.16)" stroke-width="0.8"/>
+  <text x="188" y="299" text-anchor="middle" font-size="8.5" fill="#0d9668">📚 History</text>
+
+  <rect x="242" y="282" width="110" height="26" rx="5" fill="rgba(16,163,110,0.06)" stroke="rgba(16,163,110,0.16)" stroke-width="0.8"/>
+  <text x="297" y="299" text-anchor="middle" font-size="8.5" fill="#0d9668">🔐 Google Auth</text>
+
+  <!-- Libraries -->
+  <text x="42" y="330" font-size="8" font-weight="700" fill="#9095a8" letter-spacing="1">LIBRARIES</text>
+
+  <rect x="42" y="340" width="68" height="22" rx="5" fill="rgba(212,135,0,0.06)" stroke="rgba(212,135,0,0.14)" stroke-width="0.8"/>
+  <text x="76" y="355" text-anchor="middle" font-size="8" fill="#c07c00">KaTeX</text>
+
+  <rect x="118" y="340" width="90" height="22" rx="5" fill="rgba(212,135,0,0.06)" stroke="rgba(212,135,0,0.14)" stroke-width="0.8"/>
+  <text x="163" y="355" text-anchor="middle" font-size="8" fill="#c07c00">html2canvas</text>
+
+  <rect x="216" y="340" width="60" height="22" rx="5" fill="rgba(212,135,0,0.06)" stroke="rgba(212,135,0,0.14)" stroke-width="0.8"/>
+  <text x="246" y="355" text-anchor="middle" font-size="8" fill="#c07c00">jsPDF</text>
+
+  <rect x="284" y="340" width="68" height="22" rx="5" fill="rgba(212,135,0,0.06)" stroke="rgba(212,135,0,0.14)" stroke-width="0.8"/>
+  <text x="318" y="355" text-anchor="middle" font-size="8" fill="#c07c00">chrome.*</text>
+
+  <!-- Storage -->
+  <text x="42" y="385" font-size="8" font-weight="700" fill="#9095a8" letter-spacing="1">LOCAL STATE</text>
+
+  <rect x="42" y="395" width="140" height="26" rx="5" fill="rgba(139,60,220,0.06)" stroke="rgba(139,60,220,0.16)" stroke-width="0.8"/>
+  <text x="112" y="412" text-anchor="middle" font-size="8.5" fill="#7c3aed">chrome.storage.local</text>
+
+  <rect x="190" y="395" width="100" height="26" rx="5" fill="rgba(139,60,220,0.06)" stroke="rgba(139,60,220,0.16)" stroke-width="0.8"/>
+  <text x="240" y="412" text-anchor="middle" font-size="8.5" fill="#7c3aed">localStorage</text>
+
+  <!-- Room Viewer -->
+  <rect x="42" y="438" width="304" height="50" rx="8" fill="rgba(16,163,110,0.05)" stroke="rgba(16,163,110,0.18)" stroke-width="0.8"/>
+  <text x="56" y="460" font-size="9" font-weight="700" fill="#0d9668">🌐 Room Viewer</text>
+  <text x="56" y="476" font-size="8" fill="#7a7e90">room/index.html — Vercel hosted SPA</text>
+  <text x="300" y="468" text-anchor="end" font-size="7.5" fill="#0d9668">notepilot-room.vercel.app</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- CONNECTION ARROWS                           -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <!-- Extension → Backend -->
+  <line x1="370" y1="160" x2="520" y2="120" stroke="rgba(229,9,20,0.4)" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrowR)"/>
+  <text x="440" y="126" text-anchor="middle" font-size="8.5" font-weight="600" fill="#d6232e">REST API</text>
+  <text x="440" y="140" text-anchor="middle" font-size="7.5" fill="#7a7e90">Bearer JWT</text>
+
+  <!-- Extension → Backend (second arrow for visual) -->
+  <line x1="370" y1="270" x2="520" y2="230" stroke="rgba(229,9,20,0.25)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowR)"/>
+
+  <!-- Backend → MongoDB -->
+  <line x1="700" y1="355" x2="700" y2="405" stroke="rgba(16,163,110,0.4)" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowG)"/>
+
+  <!-- Backend → Groq -->
+  <line x1="790" y1="355" x2="790" y2="405" stroke="rgba(139,60,220,0.4)" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowP)"/>
+
+  <!-- Room Viewer → Backend -->
+  <line x1="350" y1="470" x2="520" y2="310" stroke="rgba(16,163,110,0.3)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowG)"/>
+  <text x="420" y="400" text-anchor="middle" font-size="7.5" fill="#7a7e90">Public APIs</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- BACKEND (RIGHT TOP)                         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <rect x="524" y="48" width="352" height="310" rx="12" fill="#ffffff" stroke="rgba(16,163,110,0.25)" stroke-width="1.2"/>
+  <!-- Title bar -->
+  <rect x="524" y="48" width="352" height="36" rx="12" fill="rgba(16,163,110,0.07)"/>
+  <rect x="524" y="72" width="352" height="12" fill="rgba(16,163,110,0.07)"/>
+  <text x="544" y="72" font-size="13" font-weight="800" fill="#0d9668" letter-spacing="1">Node.js Backend</text>
+  <text x="838" y="72" text-anchor="end" font-size="8" fill="#9095a8">Express + Mongoose</text>
+
+  <!-- Auth routes -->
+  <text x="544" y="104" font-size="8" font-weight="700" fill="#9095a8" letter-spacing="1">AUTH</text>
+
+  <rect x="544" y="112" width="80" height="24" rx="5" fill="rgba(16,163,110,0.06)" stroke="rgba(16,163,110,0.16)" stroke-width="0.8"/>
+  <text x="584" y="128" text-anchor="middle" font-size="8" fill="#0d9668">Register</text>
+
+  <rect x="632" y="112" width="60" height="24" rx="5" fill="rgba(16,163,110,0.06)" stroke="rgba(16,163,110,0.16)" stroke-width="0.8"/>
+  <text x="662" y="128" text-anchor="middle" font-size="8" fill="#0d9668">Login</text>
+
+  <rect x="700" y="112" width="84" height="24" rx="5" fill="rgba(16,163,110,0.06)" stroke="rgba(16,163,110,0.16)" stroke-width="0.8"/>
+  <text x="742" y="128" text-anchor="middle" font-size="8" fill="#0d9668">Google OAuth</text>
+
+  <rect x="792" y="112" width="66" height="24" rx="5" fill="rgba(16,163,110,0.06)" stroke="rgba(16,163,110,0.16)" stroke-width="0.8"/>
+  <text x="825" y="128" text-anchor="middle" font-size="8" fill="#0d9668">JWT Verify</text>
+
+  <!-- Data routes -->
+  <text x="544" y="158" font-size="8" font-weight="700" fill="#9095a8" letter-spacing="1">DATA CRUD</text>
+
+  <rect x="544" y="166" width="105" height="24" rx="5" fill="rgba(79,70,229,0.06)" stroke="rgba(79,70,229,0.16)" stroke-width="0.8"/>
+  <text x="596" y="182" text-anchor="middle" font-size="8" fill="#5b52e0">/api/videos/*</text>
+
+  <rect x="657" y="166" width="100" height="24" rx="5" fill="rgba(79,70,229,0.06)" stroke="rgba(79,70,229,0.16)" stroke-width="0.8"/>
+  <text x="707" y="182" text-anchor="middle" font-size="8" fill="#5b52e0">/api/rooms/*</text>
+
+  <rect x="765" y="166" width="93" height="24" rx="5" fill="rgba(79,70,229,0.06)" stroke="rgba(79,70,229,0.16)" stroke-width="0.8"/>
+  <text x="811" y="182" text-anchor="middle" font-size="8" fill="#5b52e0">Annotations</text>
+
+  <!-- AI Proxy routes -->
+  <text x="544" y="214" font-size="8" font-weight="700" fill="#9095a8" letter-spacing="1">AI PROXY (Groq)</text>
+
+  <rect x="544" y="222" width="80" height="24" rx="5" fill="rgba(139,60,220,0.06)" stroke="rgba(139,60,220,0.16)" stroke-width="0.8"/>
+  <text x="584" y="238" text-anchor="middle" font-size="8" fill="#7c3aed">/ai/chat</text>
+
+  <rect x="632" y="222" width="80" height="24" rx="5" fill="rgba(139,60,220,0.06)" stroke="rgba(139,60,220,0.16)" stroke-width="0.8"/>
+  <text x="672" y="238" text-anchor="middle" font-size="8" fill="#7c3aed">/ai/vision</text>
+
+  <rect x="720" y="222" width="68" height="24" rx="5" fill="rgba(139,60,220,0.06)" stroke="rgba(139,60,220,0.16)" stroke-width="0.8"/>
+  <text x="754" y="238" text-anchor="middle" font-size="8" fill="#7c3aed">/ai/quiz</text>
+
+  <rect x="796" y="222" width="62" height="24" rx="5" fill="rgba(139,60,220,0.06)" stroke="rgba(139,60,220,0.16)" stroke-width="0.8"/>
+  <text x="827" y="238" text-anchor="middle" font-size="8" fill="#7c3aed">/ai/cards</text>
+
+  <!-- Room extras -->
+  <text x="544" y="270" font-size="8" font-weight="700" fill="#9095a8" letter-spacing="1">ROOM FEATURES</text>
+
+  <rect x="544" y="278" width="100" height="24" rx="5" fill="rgba(212,135,0,0.06)" stroke="rgba(212,135,0,0.16)" stroke-width="0.8"/>
+  <text x="594" y="294" text-anchor="middle" font-size="8" fill="#c07c00">Room Quiz Gen</text>
+
+  <rect x="652" y="278" width="110" height="24" rx="5" fill="rgba(212,135,0,0.06)" stroke="rgba(212,135,0,0.16)" stroke-width="0.8"/>
+  <text x="707" y="294" text-anchor="middle" font-size="8" fill="#c07c00">Room Flashcards</text>
+
+  <rect x="770" y="278" width="88" height="24" rx="5" fill="rgba(212,135,0,0.06)" stroke="rgba(212,135,0,0.16)" stroke-width="0.8"/>
+  <text x="814" y="294" text-anchor="middle" font-size="8" fill="#c07c00">Live Note Sync</text>
+
+  <!-- Hosted on -->
+  <text x="544" y="330" font-size="7.5" fill="#9095a8">Hosted on Render →</text>
+  <text x="654" y="330" font-size="7.5" fill="#0d9668">notepilot-3ntc.onrender.com</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- EXTERNAL SERVICES (RIGHT BOTTOM)            -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <!-- MongoDB -->
+  <rect x="544" y="410" width="190" height="80" rx="12" fill="#ffffff" stroke="rgba(16,163,110,0.25)" stroke-width="1.2"/>
+  <rect x="544" y="410" width="190" height="30" rx="12" fill="rgba(16,163,110,0.06)"/>
+  <rect x="544" y="428" width="190" height="12" fill="rgba(16,163,110,0.06)"/>
+  <text x="639" y="432" text-anchor="middle" font-size="11" font-weight="700" fill="#0d9668">🍃 MongoDB Atlas</text>
+  <rect x="560" y="450" width="56" height="18" rx="4" fill="rgba(16,163,110,0.05)"/>
+  <text x="588" y="463" text-anchor="middle" font-size="7.5" fill="#7a7e90">Users</text>
+  <rect x="622" y="450" width="56" height="18" rx="4" fill="rgba(16,163,110,0.05)"/>
+  <text x="650" y="463" text-anchor="middle" font-size="7.5" fill="#7a7e90">Videos</text>
+  <rect x="684" y="450" width="40" height="18" rx="4" fill="rgba(16,163,110,0.05)"/>
+  <text x="704" y="463" text-anchor="middle" font-size="7.5" fill="#7a7e90">Rooms</text>
+
+  <!-- Groq API -->
+  <rect x="750" y="410" width="126" height="80" rx="12" fill="#ffffff" stroke="rgba(139,60,220,0.25)" stroke-width="1.2"/>
+  <rect x="750" y="410" width="126" height="30" rx="12" fill="rgba(139,60,220,0.06)"/>
+  <rect x="750" y="428" width="126" height="12" fill="rgba(139,60,220,0.06)"/>
+  <text x="813" y="432" text-anchor="middle" font-size="11" font-weight="700" fill="#7c3aed">⚡ Groq API</text>
+  <rect x="762" y="450" width="102" height="16" rx="4" fill="rgba(139,60,220,0.05)"/>
+  <text x="813" y="462" text-anchor="middle" font-size="7.5" fill="#7a7e90">Llama 3.3 · 4 Scout</text>
+  <text x="813" y="480" text-anchor="middle" font-size="7" fill="#9095a8">Chat · Vision · JSON</text>
+
+  <!-- Google OAuth -->
+  <rect x="544" y="500" width="332" height="30" rx="8" fill="#ffffff" stroke="rgba(234,67,53,0.18)" stroke-width="0.8"/>
+  <text x="562" y="519" font-size="10" font-weight="700" fill="#EA4335">G</text>
+  <text x="576" y="519" font-size="9" font-weight="600" fill="#4a4e60">Google OAuth 2.0</text>
+  <text x="838" y="519" text-anchor="end" font-size="7.5" fill="#9095a8">chrome.identity → google-auth-library verify</text>
+</svg>
